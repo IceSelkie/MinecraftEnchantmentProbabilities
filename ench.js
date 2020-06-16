@@ -5,31 +5,31 @@
  * @version 1.00
  * @date 2020-06-15
 **/
-primes = [2,3];
+// primes = [2,3];
 bprimes = [2n,3n];
 function extendPrimes()
 {
-  val = primes[primes.length-1];
-  ct = 0;
+  var val = bprimes[bprimes.length-1];
+  var ct = 0;
   while (ct<5)
   {
-    val+=2;
+    val+=2n;
 
-    sq = Math.sqrt(val);
-    p=true;
-    for (i=0; primes[i]<=sq; i++)
-      if (val%primes[i]==0)
+    var sq = bSqrt(val);
+    var p=true;
+    for (i=0; bprimes[i]<=sq; i++)
+      if (val%bprimes[i]==0n)
       {
         p=false;
         break;
       }
     if (p)
     {
-      console.log("Adding "+val+" as prime.")
-      primes.push(val);
+      //console.log("Adding "+val+" as prime.")
+      // primes.push(val);
       bprimes.push(BigInt(val));
       ct++;
-      console.log("ct now "+ct)
+      //console.log("ct now "+ct)
     }
   }
 }
@@ -62,33 +62,40 @@ function bPrimeFactors(val)
   if (val==1n)
     return [];
 
-  ret = [];
+  var ret = [];
   if (val<0)
   {
     ret.push[-1n];
     val*=-1n;
   }
-  sq = bSqrt(val);
-  for (i = 0; bprimes[i]<=sq; i++)
+  var sq = bSqrt(val);
+  // console.log("sqrt"+val+"=="+sq);
+  for (var i = 0; bprimes[i]<=sq; i++)
   {
-    if (primes.length<i+5)
+    // console.log("Checking factor ("+i+"): "+bprimes[i]);
+    if (bprimes.length<i+5)
       extendPrimes();
     while (val%bprimes[i]==0n)
     {
+      // console.log("found factor: "+bprimes[i]);
       ret.push(bprimes[i]);
-      val=val/bprimes[i];
+      val/=bprimes[i];
       sq = bSqrt(val);
+      // console.log("sqrt"+val+"=="+sq);
     }
+    // console.log("c("+sq+")");
   }
+  // console.log("finishing at sq="+sq+"; val="+val);
   if (val!=1n)
     ret.push(val);
+  // console.log(bprimes);
   return ret;
 }
 function factorsIntersect(fact,other)
 {
-  i=0;
-  j=0;
-  ret = [];
+  var i=0;
+  var j=0;
+  var ret = [];
   while (i<fact.length && j<other.length)
   {
   if (fact[i]==other[j])
@@ -109,15 +116,18 @@ function cofactors(fact, val)
 {
   if (typeof fact === 'bigint')
     fact = bPrimeFactors(fact);
-  ret=[]
+  var ret=[]
+  // console.log(fact);
   for (i=0; i<fact.length; i++)
   {
     if (val%fact[i]==0)
     {
-      val%=fact[i];
+      // console.log(val+"/"+fact[i]+"="+(val/fact[i])+" R"+(val%fact[i]));
+      val/=fact[i];
       ret.push(fact[i]);
     }
   }
+  // console.log(ret);
   return ret;
 }
 
@@ -176,6 +186,27 @@ class Q
     if (str.length>pow)
       str = str.substring(0,str.length-(width-pow))+"."+str.substring(str.length-(width-pow));
     return str;
+  }
+  simplify()
+  {
+    // var orig=q(this);
+    if (this.n==0n)
+      this.d=1n;
+    else if (this.n==this.d)
+      this.n=this.d=1n;
+    else
+    {
+      var fact = cofactors(this.n, this.d)
+      var common = 1n;
+      for (var i=0;i<fact.length;i++)
+        common*=fact[i];
+      if(this.n%common!=0||this.d%common!=0)
+        throw "simplify error: "+this+" ("+common+")";
+      this.n/=common;
+      this.d/=common;
+    }
+    // console.log(orig+" -> "+this);
+    return this;
   }
   
   reci(){return this.reciprocal();}   //RECIprocal
@@ -367,6 +398,7 @@ class probdistrib
     for (var i = 0; i<this.weights.length; i++)
     {
       var val = new Q(this.weights[i].value);
+      var probs = [];
 
       var vs = val.mu(scale);
       var vr2 = val.mu(radius).mu(2n);
@@ -390,34 +422,26 @@ class probdistrib
         var x_ga=x_ab.mu(x_ab).s(x_aa.mu(x_aa)).di(vr2).a(ONE.s(sdr).mu(x_ab.s(x_aa)));
         var x_gb=x_ba.mu(x_ba).s(x_bb.mu(x_bb)).di(vr2).a(ONE.a(sdr).mu(x_bb.s(x_ba)));
         var x=x_ga.a(x_gb);
-        console.log("v:"+val.toDecimal(3)+" | l<"+l.toDecimal(1)+"> -> "+x.toDecimal(5)+";");
-        // var obj = {
-        //             "vars":{"scale":scale,"radius":radius,"offset":offset,
-        //                   "ret":ret,"val":val},
-        //             "region":{"be_a":be_a,"b_a":b_a,"b_af":b_af,"be_b":be_b,
-        //                     "b_b":b_b,"b_bc":b_bc},
-        //             "selection":{"l":l,"lm":lm,"lp":lp,"x_aa":x_aa,"x_ab":x_ab,
-        //                        "x_ba":x_ba,"x_bb":x_bb,"x_ga":x_ga,"x_gb":x_gb,
-        //                        "x":x}
-        //           };
-        // console.log(obj);
-
-        // integral from newval-.5 to newval+.5 of triangle as Q.
-        // a:
-        //   ((l+.5)^2-(v-sr)^2)/2r+(1-sv/r)((l+.5)-(v-sr))
-        // b:
-        //   (l-vs)/r+1;
-        // c:
-        //   (8svl-4(vs)^2-4l^2-1)/4r+1
-        // d:
-        //   (vs-l)/r+1;
-        // e:
-        //   ((l-.5)^2-(v+sr)^2)/2r+(1+sv/r)((v+sr)-(l-.5))
-        // ac:
-        //   nah
-        // ce:
-        //   nah
+        probs.push({"l":l,"x":x.simplify()})
+        //console.log("v:"+val.toDecimal(3)+" | l<"+l.toDecimal(1)+"> -> "+x.toString()+";");
       }
+      console.log(probs);
+      var probs2=[];
+      // for (var j=0;j<probs.length;j++)
+      // {
+      //   probs2.push({"l":probs[i].l,"x":probs[i].x.n});
+      //   for (var k=0;k<probs.length;k++)
+      //     if (j!=k)
+      //     {
+      //       if (probs[k].x.d==0n)
+      //         throw 'denom is 0'
+      //      probs2[j].x.n*=probs[k].x.d;
+      //    }
+      // }
+      // console.log(probs2);
+      // for (var j=0;j<probs.length;j++)
+      //   probs[j].x=probs2[j].x.n;
+      // console.log(probs);
     }
 
     //TODO: recombine probs into one distribution.
@@ -537,6 +561,11 @@ function main()
   // console.log(bPrimeFactors(1061340n));
   // console.log(bPrimeFactors(77805n));
   // console.log(bFactorsIntersect(bPrimeFactors(1061340n),bPrimeFactors(77805n*7n)));
+  
+  //console.log(bSqrt(7541066681n));
+  // console.log(bPrimeFactors(60727873587294018512000000n));
+  // console.log(bPrimeFactors(157800210763504777600000000n));
+  // console.log(cofactors(60727873587294018512000000n,157800210763504777600000000n))
 
 
   // p = new pair(5,5n);
@@ -581,7 +610,7 @@ function main()
   // console.log(r13o83s.toDecimal(5));
 
 
-  new probdistrib(2,3).triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
+  new probdistrib(2,2).triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
 }
 main();
 
@@ -657,7 +686,51 @@ function enchant(enchantability, enchantments, conflicts, remove)
 
 
 
-
+// function bSqrt(value)
+// {
+//   if (value < 0n)
+//     return -bSqrt(-value);
+//   if (value < 2n)
+//     return value;
+//   var bsearch = true;
+//   var guess = 2n;
+//   var step = 2n;
+//   while (step!=1n)
+//   {
+//     if (bsearch)
+//       if (guess*guess==value)
+//         return guess;
+//       else
+//         if (guess*guess<value)
+//         {
+//           guess+=step;
+//           step*=2n;
+//         }
+//         else
+//         {
+//           bsearch=false;
+//           step/=2n;
+//           guess-=step;
+//         }
+//     else
+//       if (guess*guess==value)
+//         return guess;
+//       else
+//         if (guess*guess<value)
+//         {
+//           step/=2n;
+//           guess+=step;
+//         }
+//         else
+//         {
+//           step/=2n;
+//           guess-=step;
+//         }
+//   }
+//   if (guess*guess>value)
+//     return guess;
+//   return guess+1n;
+// }
 
 
 
