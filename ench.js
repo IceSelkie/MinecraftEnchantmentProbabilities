@@ -17,7 +17,7 @@ function extendPrimes()
 
     var sq = bSqrt(val);
     var p=true;
-    for (i=0; bprimes[i]<=sq; i++)
+    for (var i=0; bprimes[i]<=sq; i++)
       if (val%bprimes[i]==0n)
       {
         p=false;
@@ -37,7 +37,7 @@ function primeFactors(val)
 {
   sq = Math.sqrt(val);
   ret = [];
-  for (i = 0; bprimes[i]<=sq; i++)
+  for (var i = 0; bprimes[i]<=sq; i++)
   {
     console.log("if ("+primes.length+"<"+(i+5)+")");
     if (primes.length<i+5)
@@ -118,7 +118,7 @@ function cofactors(fact, val)
     fact = bPrimeFactors(fact);
   var ret=[]
   // console.log(fact);
-  for (i=0; i<fact.length; i++)
+  for (var i=0; i<fact.length; i++)
   {
     if (val%fact[i]==0)
     {
@@ -128,6 +128,34 @@ function cofactors(fact, val)
     }
   }
   // console.log(ret);
+  return ret;
+}
+function allfactors(val1,val2)
+{
+  if (val1 instanceof Q) val1=val1.d;
+  if (val2 instanceof Q) val2=val2.d;
+  if (typeof val1 == 'bigint') val1=bPrimeFactors(val1);
+  if (typeof val2 == 'bigint') val2=bPrimeFactors(val2);
+  var ret=[];
+  var i=0;var j=0;
+  while (i<val1.length&&j<val2.length)
+  {
+    if (val1[i]==val2[j])
+      {ret.push(val1[i]);i++;j++;}
+    else if (val1[i]<val2[j])
+      ret.push(val1[i++]);
+    else
+      ret.push(val2[j++]);
+  }
+  while (i<val1.length) ret.push(val1[i++]);
+  while (j<val2.length) ret.push(val2[j++]);
+  return ret;
+}
+function bProduct(facts)
+{
+  var ret = 1n;
+  for (var i=0; i<facts.length; i++)
+    ret*=facts[i];
   return ret;
 }
 
@@ -394,7 +422,7 @@ class probdistrib
       radius = new Q(radius);
     if (offset instanceof Q || typeof offset == 'bigint' || (typeof offset == 'number' && offset.toString()==BigInt(offset).toString()))
       offset = new Q(offset);
-    var ret = new probdistrib(0,-1);
+    var ret = {"l":[],"x":[]};
     for (var i = 0; i<this.weights.length; i++)
     {
       var val = new Q(this.weights[i].value);
@@ -422,32 +450,77 @@ class probdistrib
         var x_ga=x_ab.mu(x_ab).s(x_aa.mu(x_aa)).di(vr2).a(ONE.s(sdr).mu(x_ab.s(x_aa)));
         var x_gb=x_ba.mu(x_ba).s(x_bb.mu(x_bb)).di(vr2).a(ONE.a(sdr).mu(x_bb.s(x_ba)));
         var x=x_ga.a(x_gb);
-        probs.push({"l":l,"x":x.simplify()})
+        if (x.simplify().n!=0n)
+          probs.push({"l":l.n,"x":x});
         //console.log("v:"+val.toDecimal(3)+" | l<"+l.toDecimal(1)+"> -> "+x.toString()+";");
       }
-      console.log(probs);
-      var probs2=[];
-      // for (var j=0;j<probs.length;j++)
-      // {
-      //   probs2.push({"l":probs[i].l,"x":probs[i].x.n});
-      //   for (var k=0;k<probs.length;k++)
-      //     if (j!=k)
-      //     {
-      //       if (probs[k].x.d==0n)
-      //         throw 'denom is 0'
-      //      probs2[j].x.n*=probs[k].x.d;
-      //    }
-      // }
-      // console.log(probs2);
-      // for (var j=0;j<probs.length;j++)
-      //   probs[j].x=probs2[j].x.n;
       // console.log(probs);
+
+      // Convert to same denominator
+      var fact = bPrimeFactors(probs[0].x.d);
+      for (var j=1;j<probs.length;j++)
+        fact=allfactors(fact,probs[j].x.d);
+      fact = bProduct(fact);
+      for (var j=0;j<probs.length;j++)
+        probs[j].x=fact/probs[j].x.d*probs[j].x.n;
+      // console.log(probs);
+
+      // Reduce to coprime.
+      fact = bPrimeFactors(probs[0].x);
+      for (var j=1;j<probs.length;j++)
+        fact=cofactors(fact,probs[j].x);
+      fact=bProduct(fact);
+      for (var j=0;j<probs.length;j++)
+        probs[j].x/=fact;
+      // console.log(probs);
+
+      //multiply my freq and add to original.
+      fact=0n;
+      for (var j=0;j<probs.length;j++)
+      {
+        probs[j].x*=this.weights[i].weight;
+        fact+=probs[j].x;
+      }
+      for (var j=0;j<probs.length;j++)
+      {
+        var index = ret.l.indexOf(this.weights[i].value);
+        if (index==-1)
+        {
+          ret.l.push(probs[j].l);
+          ret.x.push(q(probs[j].x,fact));
+        }
+        else
+          ret.x[index].a(q(probs[j],fact));
+      }
+      // console.log(ret);
+    }
+    // Convert to same denominator
+    var fact = bPrimeFactors(ret.x[0].d);
+    for (var j=1;j<ret.x.length;j++)
+      fact=allfactors(fact,ret.x[j].d);
+    fact = bProduct(fact);
+    for (var j=0;j<ret.x.length;j++)
+      ret.x[j]=fact/ret.x[j].d*ret.x[j].n;
+    // console.log(ret);
+
+    // Reduce to coprime.
+    fact = bPrimeFactors(ret.x[0]);
+    for (var j=1;j<ret.x.length;j++)
+      fact=cofactors(fact,ret.x[j]);
+    fact=bProduct(fact);
+    for (var j=0;j<ret.x.length;j++)
+      ret.x[j]/=fact;
+    console.log(ret);
+
+    this.t=0n;
+    this.wts=[];
+    for (var j=0;j<ret.x.length;j++)
+    {
+      this.t+=ret.x[j];
+      this.wts.push(new pair(Number(ret.l[j]),ret.x[j]));
     }
 
-    //TODO: recombine probs into one distribution.
-    // for()
-    //   ret=ret.union(each(val));
-    // return ret;
+
   }
 
   simplify()
@@ -484,7 +557,7 @@ class probdistrib
   {
     if (typeof val === 'number')
     {
-      for (i=0; i<this.weights.length; i++)
+      for (var i=0; i<this.weights.length; i++)
         this.weights[i].value+=val;
     }
     else
@@ -534,7 +607,7 @@ function minWtAbove(prob, val)
   if (typeof val !== 'bigint')
     throw "bigint required for working with weights"
   min=-1n;
-  for (i=0;i<prob.weights.length; i++)
+  for (var i=0;i<prob.weights.length; i++)
   {
     t=prob.weights[i];
     if (min==-1n||(min>t.weight && t.weight>val))
@@ -609,8 +682,10 @@ function main()
   // r13o83s = new Q(350629275419n,669935023473116n*669935023473116n);
   // console.log(r13o83s.toDecimal(5));
 
-
-  new probdistrib(2,2).triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
+  var dist = new probdistrib(2,3);
+  dist.triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
+  console.log(dist);
+  dist.
 }
 main();
 
