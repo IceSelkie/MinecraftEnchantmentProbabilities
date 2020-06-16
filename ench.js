@@ -5,7 +5,6 @@
  * @version 1.00
  * @date 2020-06-15
 **/
-// primes = [2,3];
 bprimes = [2n,3n];
 function extendPrimes()
 {
@@ -13,6 +12,7 @@ function extendPrimes()
   var ct = 0;
   while (ct<5)
   {
+    // we start with 2 and 3, and all other primes are odd.
     val+=2n;
 
     var sq = bSqrt(val);
@@ -25,33 +25,10 @@ function extendPrimes()
       }
     if (p)
     {
-      //console.log("Adding "+val+" as prime.")
-      // primes.push(val);
       bprimes.push(BigInt(val));
       ct++;
-      //console.log("ct now "+ct)
     }
   }
-}
-function primeFactors(val)
-{
-  sq = Math.sqrt(val);
-  ret = [];
-  for (var i = 0; bprimes[i]<=sq; i++)
-  {
-    console.log("if ("+primes.length+"<"+(i+5)+")");
-    if (primes.length<i+5)
-      extendPrimes();
-    while (val%primes[i]==0)
-    {
-      ret.push(primes[i]);
-      val=val/primes[i];
-      sq = Math.sqrt(val);
-    }
-  }
-  if (val!=1)
-    ret.push(val);
-  return ret;
 }
 function bPrimeFactors(val)
 {
@@ -69,29 +46,22 @@ function bPrimeFactors(val)
     val*=-1n;
   }
   var sq = bSqrt(val);
-  // console.log("sqrt"+val+"=="+sq);
   for (var i = 0; bprimes[i]<=sq; i++)
   {
-    // console.log("Checking factor ("+i+"): "+bprimes[i]);
     if (bprimes.length<i+5)
       extendPrimes();
     while (val%bprimes[i]==0n)
     {
-      // console.log("found factor: "+bprimes[i]);
       ret.push(bprimes[i]);
       val/=bprimes[i];
       sq = bSqrt(val);
-      // console.log("sqrt"+val+"=="+sq);
     }
-    // console.log("c("+sq+")");
   }
-  // console.log("finishing at sq="+sq+"; val="+val);
   if (val!=1n)
     ret.push(val);
-  // console.log(bprimes);
   return ret;
 }
-function factorsIntersect(fact,other)
+function bFactorsIntersect(fact,other)
 {
   var i=0;
   var j=0;
@@ -111,26 +81,26 @@ function factorsIntersect(fact,other)
   }
   return ret;
 }
-function bFactorsIntersect(fact,other){return factorsIntersect(fact,other);}
-function cofactors(fact, val)
+function bCofactors(val1, val2)
 {
-  if (typeof fact === 'bigint')
-    fact = bPrimeFactors(fact);
-  var ret=[]
-  // console.log(fact);
-  for (var i=0; i<fact.length; i++)
+  if (typeof val1 !== 'bigint' && typeof val2 !== 'bigint')
+    bFactorsIntersect(val1,val2);
+  if (typeof val2 !== 'bigint')
+    return bCofactors(val2,val1);
+  if (typeof val1 === 'bigint')
+    val1 = bPrimeFactors(val1);
+  var ret=[];
+  for (var i=0; i<val1.length; i++)
   {
-    if (val%fact[i]==0)
+    if (val2%val1[i]==0)
     {
-      // console.log(val+"/"+fact[i]+"="+(val/fact[i])+" R"+(val%fact[i]));
-      val/=fact[i];
-      ret.push(fact[i]);
+      val2/=val1[i];
+      ret.push(val1[i]);
     }
   }
-  // console.log(ret);
   return ret;
 }
-function allfactors(val1,val2)
+function bAllFactors(val1,val2)
 {
   if (val1 instanceof Q) val1=val1.d;
   if (val2 instanceof Q) val2=val2.d;
@@ -166,8 +136,8 @@ function bProduct(facts)
 /**
  * Q lib
  * @author Stanley S
- * @version b0.9
- * @date 2020-06-15
+ * @version b1.1
+ * @date 2020-06-16
 **/
 class Q
 {
@@ -191,16 +161,22 @@ class Q
       this.d=BigInt(denom);
     else
       throw 'Expected denominator';
+
+    if (this.d<0n)
+      {this.n*=-1; this.d*=-1;}
+
+    this.clean=this.d==1n;
   }
 
   get numerator(){return this.n;}
-  set numerator(num){this.n=num;}
   get denominator(){return this.d;}
-  set denominator(denom){this.d=denom;}
+
   toString()
-  {
-    return "Q{["+this.toDecimal(3)+"],"+this.n+"/"+this.d+"}";
-  }
+  {return this.n+"/"+this.d;}
+
+  // Width is approximately how many sigfigs to show.
+  // Should be within 2 of this value, but won't be exact.
+  // Exponential/scientific form not implemented.
   toDecimal(width=10)
   {
     // the E+pow
@@ -217,23 +193,23 @@ class Q
   }
   simplify()
   {
-    // var orig=q(this);
-    if (this.n==0n)
-      this.d=1n;
-    else if (this.n==this.d)
-      this.n=this.d=1n;
-    else
-    {
-      var fact = cofactors(this.n, this.d)
-      var common = 1n;
-      for (var i=0;i<fact.length;i++)
-        common*=fact[i];
-      if(this.n%common!=0||this.d%common!=0)
-        throw "simplify error: "+this+" ("+common+")";
-      this.n/=common;
-      this.d/=common;
-    }
-    // console.log(orig+" -> "+this);
+    if (!this.clean)
+      if (this.n==0n)
+        this.d=1n;
+      else if (this.n==this.d)
+        this.n=this.d=1n;
+      else
+      {
+        var fact = bCofactors(this.n, this.d)
+        var common = 1n;
+        for (var i=0;i<fact.length;i++)
+          common*=fact[i];
+        if(this.n%common!=0||this.d%common!=0)
+          throw "simplify error: "+this+" ("+common+")";
+        this.n/=common;
+        this.d/=common;
+      }
+    this.clean = true;
     return this;
   }
   
@@ -244,12 +220,13 @@ class Q
   r(){return this.round();}           //Round
   ro(){return this.roundout();}       //RoundOut
 
+  isp(){return this.isposative();}    //ISPosative
+  isz(){return this.iszero()}         //ISZero
+  isn(){return this.isnegative();}    //ISNegative
   lt(o){return this.lessthan(o);}     //LessThan
   le(o){return this.lessequal(o);}    //LessthanorEqualto
   gt(o){return this.greaterthan(o);}  //GreaterThan
   ge(o){return this.greaterequal(o);} //GreaterthanorEqualto
-  ispos(){return this.n*this.d>0;}
-  isneg(){return this.n*this.d<0;}
   e(o){return this.eq(o);}            //Equals
   eq(o){return this.equals(o);}       //EQuals
 
@@ -267,10 +244,14 @@ class Q
   roundout()
     {if (this.n%this.d==0) return this;
     return this.truncate().add(1n);}
-  floor() {return this.ispos()?this.truncate():this.roundout();}
-  ceiling() {return this.isneg()?this.truncate():this.roundout();}
+  floor() {return this.isposative()?this.truncate():this.roundout();}
+  ceiling() {return this.isnegative()?this.truncate():this.roundout();}
 
-  lessthan(other) //TODO THESE FAIL WHEN DENOM IS NEGATIVE
+  isposative(){return this.n*this.d>0;}
+  iszero(){return this.n==0n;}
+  isnegative(){return this.n*this.d<0;}
+
+  lessthan(other)
     {if (other instanceof Q) return this.n*other.d<other.n*this.d;
     else throw 'Expected other instanceof Q';}
   lessequal(other)
@@ -282,6 +263,7 @@ class Q
   greaterequal(other)
     {if (other instanceof Q) return this.n*other.d>=other.n*this.d;
     else throw 'Expected other instanceof Q';}
+
   equals(other)
   {
     if (other instanceof Q)
@@ -342,15 +324,7 @@ class Q
     throw 'Expected other instanceof Q'
   }
 }
-// class QP
-// {
-//   constructor(a,b,c=null,d=null)
-//   {
-
-//   }
-// }
 function q(a,b=null){return new Q(a,b);}
-// function qp(a,b,c=null,d=null){return new QP(a,b,c,d);}
 const ZERO = new Q(0n,1n);
 const ONE = new Q(1n,1n);
 const TWO = new Q(2n,1n);
@@ -459,7 +433,7 @@ class probdistrib
       // Convert to same denominator
       var fact = bPrimeFactors(probs[0].x.d);
       for (var j=1;j<probs.length;j++)
-        fact=allfactors(fact,probs[j].x.d);
+        fact=bAllFactors(fact,probs[j].x.d);
       fact = bProduct(fact);
       for (var j=0;j<probs.length;j++)
         probs[j].x=fact/probs[j].x.d*probs[j].x.n;
@@ -468,7 +442,7 @@ class probdistrib
       // Reduce to coprime.
       fact = bPrimeFactors(probs[0].x);
       for (var j=1;j<probs.length;j++)
-        fact=cofactors(fact,probs[j].x);
+        fact=bCofactors(fact,probs[j].x);
       fact=bProduct(fact);
       for (var j=0;j<probs.length;j++)
         probs[j].x/=fact;
@@ -497,7 +471,7 @@ class probdistrib
     // Convert to same denominator
     var fact = bPrimeFactors(ret.x[0].d);
     for (var j=1;j<ret.x.length;j++)
-      fact=allfactors(fact,ret.x[j].d);
+      fact=bAllFactors(fact,ret.x[j].d);
     fact = bProduct(fact);
     for (var j=0;j<ret.x.length;j++)
       ret.x[j]=fact/ret.x[j].d*ret.x[j].n;
@@ -506,11 +480,11 @@ class probdistrib
     // Reduce to coprime.
     fact = bPrimeFactors(ret.x[0]);
     for (var j=1;j<ret.x.length;j++)
-      fact=cofactors(fact,ret.x[j]);
+      fact=bCofactors(fact,ret.x[j]);
     fact=bProduct(fact);
     for (var j=0;j<ret.x.length;j++)
       ret.x[j]/=fact;
-    console.log(ret);
+    // console.log(ret);
 
     this.t=0n;
     this.wts=[];
@@ -519,101 +493,7 @@ class probdistrib
       this.t+=ret.x[j];
       this.wts.push(new pair(Number(ret.l[j]),ret.x[j]));
     }
-
-
   }
-
-  simplify()
-  {
-    if (this.weights.length==0)
-      return;
-    if (this.weights.length==1)
-    {
-      this.weights[0].weight=1n;
-      return
-    }
-
-    for (var i=this.weights.length-1;i>=0;i--)
-      if (this.weights[i].weight==0n)
-        this.weights.removetheitematindexi(i);
-    var minwt = minWtAbove(this,0n);
-    console.log(minwt);
-    var common = bPrimeFactors(minWtAbove(this,0n));
-    console.log("common: "+common);
-    for (var i = 1; i<this.weights.length; i++)
-    {
-      common = cofactors(common,this.weights[i].weight);
-      console.log("common: "+common);
-      if (common.length==0)
-        return;
-    }
-    var prod = common[0];
-    for (var i=1;i<common.length;i++)
-      prod*=common[i];
-    for (var i=0;i<this.weights.length;i++)
-      this.weights[i]/=prod;
-  }
-  add(val)
-  {
-    if (typeof val === 'number')
-    {
-      for (var i=0; i<this.weights.length; i++)
-        this.weights[i].value+=val;
-    }
-    else
-    {
-      var vals = [];
-      val.weights; val.total;
-      var ret=[];
-      var tot=0n;
-      for (var i=0;i<this.weights.length;i++)
-        for (var j=0;j<val.weights.length;j++)
-        {
-          var v=this.weights[i].value+val.weights[j].value;
-          var w=this.weights[i].weight*val.weights[j].weight;
-          var idx=vals.indexOf(v);
-          //console.log("v:"+v+",w:"+w+";i:"+idx);
-          tot+=w;
-          if (idx==-1)
-          {
-            vals.push(v);
-            ret.push(new pair(v,w));
-          }
-          else
-            ret[idx].weight+=w;
-        }
-      var ret2=new probdistrib(0,-1);
-      ret2.wts=ret;
-      ret2.t=tot;
-      return ret2;
-    }
-  }
-}
-// class bpair{val:number, wt:BigInt; constructor (val, wt) {this.val=val;this.wt=wt}};
-// class probability
-// {
-
-//   wts: pair[],
-//   total: number;
-// }
-// class bprobability
-// {
-//   wts: bpair[],
-//   total: BigInt;
-// }
-
-function minWtAbove(prob, val)
-{
-  if (typeof val !== 'bigint')
-    throw "bigint required for working with weights"
-  min=-1n;
-  for (var i=0;i<prob.weights.length; i++)
-  {
-    t=prob.weights[i];
-    if (min==-1n||(min>t.weight && t.weight>val))
-      min = t.weight;
-  }
-  return min;
 }
 
 
@@ -638,7 +518,7 @@ function main()
   //console.log(bSqrt(7541066681n));
   // console.log(bPrimeFactors(60727873587294018512000000n));
   // console.log(bPrimeFactors(157800210763504777600000000n));
-  // console.log(cofactors(60727873587294018512000000n,157800210763504777600000000n))
+  // console.log(bCofactors(60727873587294018512000000n,157800210763504777600000000n))
 
 
   // p = new pair(5,5n);
@@ -685,7 +565,6 @@ function main()
   var dist = new probdistrib(2,3);
   dist.triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
   console.log(dist);
-  dist.
 }
 main();
 
@@ -699,10 +578,10 @@ main();
  * @version 0.01
  * @date 2020-06-14
 **/
-function enchant(enchantability, enchantments, conflicts, remove)
-{
-  ;
-}
+// function enchant(enchantability, enchantments, conflicts, remove)
+// {
+//   ;
+// }
 
 
 
@@ -761,51 +640,6 @@ function enchant(enchantability, enchantments, conflicts, remove)
 
 
 
-// function bSqrt(value)
-// {
-//   if (value < 0n)
-//     return -bSqrt(-value);
-//   if (value < 2n)
-//     return value;
-//   var bsearch = true;
-//   var guess = 2n;
-//   var step = 2n;
-//   while (step!=1n)
-//   {
-//     if (bsearch)
-//       if (guess*guess==value)
-//         return guess;
-//       else
-//         if (guess*guess<value)
-//         {
-//           guess+=step;
-//           step*=2n;
-//         }
-//         else
-//         {
-//           bsearch=false;
-//           step/=2n;
-//           guess-=step;
-//         }
-//     else
-//       if (guess*guess==value)
-//         return guess;
-//       else
-//         if (guess*guess<value)
-//         {
-//           step/=2n;
-//           guess+=step;
-//         }
-//         else
-//         {
-//           step/=2n;
-//           guess-=step;
-//         }
-//   }
-//   if (guess*guess>value)
-//     return guess;
-//   return guess+1n;
-// }
 
 
 
