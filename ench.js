@@ -391,7 +391,7 @@ class ProbDist
   get weights(){return this.wts;}
 
   // value *(scale±radius)+offset
-  triangleFloatDistMultRounded(scale, radius, offset = ZERO)
+  triangleFloatModifier(scale, radius, offset = ZERO)
   {
     if (scale instanceof Q || typeof scale == 'bigint' || (typeof scale == 'number' && scale.toString()==BigInt(scale).toString()))
       scale = new Q(scale);
@@ -625,8 +625,8 @@ function main()
   // var dist = new ProbDist(17);
   console.log(dist);
   console.log(dist.toString());
-  dist = dist.triangleFloatDistMultRounded(1,q(3,20));
-  // dist = dist.triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
+  dist = dist.triangleFloatModifier(1,q(3,20));
+  // dist = dist.triangleFloatModifier(q(47,10),q(187,296),q(73,53));
   console.log(dist);
   console.log(dist.toString());
 
@@ -663,8 +663,8 @@ function enchant(enchantability, level, enchantments, conflicts, remove)
     level=level.add(offset);
     console.log(level);
 
-    //1.15 triangleFloatDistMultRounded
-    // level = level.triangleFloatDistMultRounded(1, q(3,20));
+    //1.15 triangleFloatModifier
+    // level = level.triangleFloatModifier(1, q(3,20));
     // console.log(level);
   }
 
