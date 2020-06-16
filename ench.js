@@ -344,7 +344,7 @@ function max(a,b){if (a.gt(b))return a;return b;}
 **/
 const maxStars=60
 
-class pair
+class Pair
 {
   constructor(val, bwt)
   {
@@ -382,7 +382,7 @@ class ProbDist
     if (a!=0||b!=-1)
       for (var i = a; i<b; i++)
       {
-        this.wts.push(new pair(i,1n));
+        this.wts.push(new Pair(i,1n));
         this.t++;
       }
   }
@@ -493,7 +493,7 @@ class ProbDist
     for (var j=0;j<ret.x.length;j++)
     {
       ret2.t+=ret.x[j];
-      ret2.wts.push(new pair(Number(ret.l[j]),ret.x[j]));
+      ret2.wts.push(new Pair(Number(ret.l[j]),ret.x[j]));
     }
     return ret2;
   }
@@ -507,7 +507,7 @@ class ProbDist
       var ret = new ProbDist(0,-1);
       for (var i=0; i<this.weights.length; i++)
       {
-        ret.weights.push(new pair(this.weights[i].value+val,this.weights[i].weight));
+        ret.weights.push(new Pair(this.weights[i].value+val,this.weights[i].weight));
         ret.t+=this.weights[i].weight;
       }
       return ret;
@@ -529,7 +529,7 @@ class ProbDist
           if (idx==-1)
           {
             vals.push(v);
-            ret.push(new pair(v,w));
+            ret.push(new Pair(v,w));
           }
           else
             ret[idx].weight+=w;
@@ -579,7 +579,7 @@ function main()
   // console.log(bCofactors(60727873587294018512000000n,157800210763504777600000000n))
 
 
-  // p = new pair(5,5n);
+  // p = new Pair(5,5n);
   // console.log(typeof p);
   // console.log(p);
   // console.log(p.toString());
