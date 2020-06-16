@@ -368,19 +368,19 @@ class Pair
 };
 class ProbDist
 {
-  // An even distribution from [a to b) [inclusive, exclusive).
-  constructor(a,b=a+1)
+  // An even distribution from [a to b] [inclusive, inclusive).
+  constructor(a,b=a)
   {
     if (typeof a === 'bigint') a=Number(a);
     if (typeof b === 'bigint') b=Number(b);
     if (typeof a !== 'number' || typeof b !== 'number')
       throw 'Expected Number type for both ends.'
-    if (b<=a && !(a==0&&b==-1))
+    if (b<a && !(a==0&&b==-1))
       throw 'b should be larger than a.'
     this.wts=[];
     this.t=0n;
     if (a!=0||b!=-1)
-      for (var i = a; i<b; i++)
+      for (var i = a; i<=b; i++)
       {
         this.wts.push(new Pair(i,1n));
         this.t++;
@@ -455,8 +455,8 @@ class ProbDist
       fact=0n;
       for (var j=0;j<probs.length;j++)
       {
-        probs[j].x*=this.weights[i].weight;
         fact+=probs[j].x;
+        probs[j].x*=this.weights[i].weight;
       }
       for (var j=0;j<probs.length;j++)
       {
@@ -579,13 +579,13 @@ function main()
   // console.log(bCofactors(60727873587294018512000000n,157800210763504777600000000n))
 
 
-  // p = new Pair(5,5n);
+  // var p = new Pair(5,5n);
   // console.log(typeof p);
   // console.log(p);
   // console.log(p.toString());
-  // pd = new ProbDist(1, 5);
+  // var pd = new ProbDist(1, 4);
   // console.log(pd);
-  // pd2 = pd.add(5);
+  // var pd2 = pd.add(5);
   // console.log(pd);
   // console.log(pd2);
   // pd2 = pd.add(pd);
@@ -619,13 +619,18 @@ function main()
   // r13o83s = new Q(350629275419n,669935023473116n*669935023473116n);
   // console.log(r13o83s.toDecimal(5));
 
-  // var dist = new ProbDist(2,3);
-  // dist.triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
-  // console.log(dist);
-  // console.log(dist.toString());
-  // console.log(dist);
+  var dist = new ProbDist(0,1).add(new ProbDist(0,1)).add(15);
+  // var dist = new ProbDist(15);
+  // var dist = new ProbDist(16);
+  // var dist = new ProbDist(17);
+  console.log(dist);
+  console.log(dist.toString());
+  dist = dist.triangleFloatDistMultRounded(1,q(3,20));
+  // dist = dist.triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
+  console.log(dist);
+  console.log(dist.toString());
 
-  enchant(10, 17, null, [], 0);
+  // enchant(10, 17, null, [], 0);
 }
 main();
 
@@ -651,7 +656,7 @@ function enchant(enchantability, level, enchantments, conflicts, remove)
     console.log(level);
     level=level.add(1);
     console.log(level);
-    var offset = new ProbDist(0,BigInt(i)/4n+1n);
+    var offset = new ProbDist(0,BigInt(i)/4n);
     console.log(offset);
     level=level.add(offset);
     console.log(level);
