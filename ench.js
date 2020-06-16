@@ -2,8 +2,8 @@
 /**
  * Primes lib
  * @author Stanley S
- * @version 1.00
- * @date 2020-06-15
+ * @version 1.1
+ * @date 2020-06-16
 **/
 bprimes = [2n,3n];
 function extendPrimes()
@@ -329,6 +329,7 @@ const ZERO = new Q(0n,1n);
 const ONE = new Q(1n,1n);
 const TWO = new Q(2n,1n);
 const TEN = new Q(10n,1n);
+const CENT = new Q(100n,1n);
 function min(a,b){if (a.gt(b))return b;return a;}
 function max(a,b){if (a.gt(b))return a;return b;}
 
@@ -338,8 +339,8 @@ function max(a,b){if (a.gt(b))return a;return b;}
 /**
  * Probabilities lib
  * @author Stanley S
- * @version 0.15
- * @date 2020-06-15
+ * @version 0.9
+ * @date 2020-06-16
 **/
 const maxStars=60
 
@@ -365,19 +366,21 @@ class pair
   toString()
   {return "v:"+this.value+",w:"+this.weight;}
 };
-class probdistrib
+class ProbDist
 {
-  // An even distribution from a to b (inclusive).
-  constructor(a,b)
+  // An even distribution from [a to b) [inclusive, exclusive).
+  constructor(a,b=a+1)
   {
+    if (typeof a === 'bigint') a=Number(a);
+    if (typeof b === 'bigint') b=Number(b);
     if (typeof a !== 'number' || typeof b !== 'number')
       throw 'Expected Number type for both ends.'
-    if (b<a && !(a==0&&b==-1))
+    if (b<=a && !(a==0&&b==-1))
       throw 'b should be larger than a.'
     this.wts=[];
     this.t=0n;
     if (a!=0||b!=-1)
-      for (var i = a; i<=b; i++)
+      for (var i = a; i<b; i++)
       {
         this.wts.push(new pair(i,1n));
         this.t++;
@@ -486,13 +489,68 @@ class probdistrib
       ret.x[j]/=fact;
     // console.log(ret);
 
-    this.t=0n;
-    this.wts=[];
+    var ret2 = new ProbDist(0,-1);
     for (var j=0;j<ret.x.length;j++)
     {
-      this.t+=ret.x[j];
-      this.wts.push(new pair(Number(ret.l[j]),ret.x[j]));
+      ret2.t+=ret.x[j];
+      ret2.wts.push(new pair(Number(ret.l[j]),ret.x[j]));
     }
+    return ret2;
+  }
+
+
+
+  add(val)
+  {
+    if (typeof val === 'number')
+    {
+      var ret = new ProbDist(0,-1);
+      for (var i=0; i<this.weights.length; i++)
+      {
+        ret.weights.push(new pair(this.weights[i].value+val,this.weights[i].weight));
+        ret.t+=this.weights[i].weight;
+      }
+      return ret;
+    }
+    else
+    {
+      var vals = [];
+      val.weights; val.total;
+      var ret=[];
+      var tot=0n;
+      for (var i=0;i<this.weights.length;i++)
+        for (var j=0;j<val.weights.length;j++)
+        {
+          var v=this.weights[i].value+val.weights[j].value;
+          var w=this.weights[i].weight*val.weights[j].weight;
+          var idx=vals.indexOf(v);
+          //console.log("v:"+v+",w:"+w+";i:"+idx);
+          tot+=w;
+          if (idx==-1)
+          {
+            vals.push(v);
+            ret.push(new pair(v,w));
+          }
+          else
+            ret[idx].weight+=w;
+        }
+      var ret2=new ProbDist(0,-1);
+      ret2.wts=ret;
+      ret2.t=tot;
+      return ret2;
+    }
+  }
+
+
+
+  toString(fancy=false, sorted=true)
+  {
+    if (sorted)
+      this.wts.sort(function(a,b){return -a.val+b.val;})
+    var ret="{\n";
+    for (var i=0;i<this.weights.length;i++)
+      ret+="  "+this.weights[i].value+"  ->  "+q(this.weights[i].weight*100n,this.total).toDecimal(5)+"%\n"
+    return ret+"}";
   }
 }
 
@@ -525,14 +583,13 @@ function main()
   // console.log(typeof p);
   // console.log(p);
   // console.log(p.toString());
-  // pd = new probdistrib(1,4);
-  // console.log(typeof pd);
+  // pd = new ProbDist(1, 5);
   // console.log(pd);
   // pd2 = pd.add(5);
   // console.log(pd);
-  // pd2 = pd.add(pd);
   // console.log(pd2);
-  // pd2.simplify();
+  // pd2 = pd.add(pd);
+  // console.log(pd);
   // console.log(pd2);
 
   // console.log(5n instanceof BigInt)
@@ -562,9 +619,13 @@ function main()
   // r13o83s = new Q(350629275419n,669935023473116n*669935023473116n);
   // console.log(r13o83s.toDecimal(5));
 
-  var dist = new probdistrib(2,3);
-  dist.triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
-  console.log(dist);
+  // var dist = new ProbDist(2,3);
+  // dist.triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
+  // console.log(dist);
+  // console.log(dist.toString());
+  // console.log(dist);
+
+  enchant(10, 17, null, [], 0);
 }
 main();
 
@@ -578,10 +639,31 @@ main();
  * @version 0.01
  * @date 2020-06-14
 **/
-// function enchant(enchantability, enchantments, conflicts, remove)
-// {
-//   ;
-// }
+function enchant(enchantability, level, enchantments, conflicts, remove)
+{
+  if (!(level instanceof ProbDist))
+    level = new ProbDist(level);
+  var i = enchantability;
+  if (i<=0) {
+    return [{"p":q(1),"e":[]}];
+  } else {
+    //level = level + 1 + "[0,i/4+1)" + "[0,i/4+1)";
+    console.log(level);
+    level=level.add(1);
+    console.log(level);
+    var offset = new ProbDist(0,BigInt(i)/4n+1n);
+    console.log(offset);
+    level=level.add(offset);
+    console.log(level);
+    level=level.add(offset);
+    console.log(level);
+
+    //1.15 triangleFloatDistMultRounded
+    // level = level.triangleFloatDistMultRounded(1, q(3,20));
+    // console.log(level);
+  }
+
+}
 
 
 
