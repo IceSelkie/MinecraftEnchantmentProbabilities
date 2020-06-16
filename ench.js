@@ -159,7 +159,10 @@ class Q
   set numerator(num){this.n=num;}
   get denominator(){return this.d;}
   set denominator(denom){this.d=denom;}
-  toString(){return this.n+"/"+this.d;}
+  toString()
+  {
+    return "Q{["+this.toDecimal(3)+"],"+this.n+"/"+this.d+"}";
+  }
   toDecimal(width=10)
   {
     // the E+pow
@@ -186,6 +189,8 @@ class Q
   le(o){return this.lessequal(o);}    //LessthanorEqualto
   gt(o){return this.greaterthan(o);}  //GreaterThan
   ge(o){return this.greaterequal(o);} //GreaterthanorEqualto
+  ispos(){return this.n*this.d>0;}
+  isneg(){return this.n*this.d<0;}
   e(o){return this.eq(o);}            //Equals
   eq(o){return this.equals(o);}       //EQuals
 
@@ -197,11 +202,15 @@ class Q
   
   reciprocal(){return new Q(this.d,this.n);}
   negate(){return new Q(-this.n,this.d);}
+
   truncate(){return new Q(this.n/this.d);}
   round(){return this.multiply(2n).truncate().add(1n).divide(2n).truncate();}
   roundout()
     {if (this.n%this.d==0) return this;
-    return truncate().add(1n);}
+    return this.truncate().add(1n);}
+  floor() {return this.ispos()?this.truncate():this.roundout();}
+  ceiling() {return this.isneg()?this.truncate():this.roundout();}
+
   lessthan(other) //TODO THESE FAIL WHEN DENOM IS NEGATIVE
     {if (other instanceof Q) return this.n*other.d<other.n*this.d;
     else throw 'Expected other instanceof Q';}
@@ -214,7 +223,6 @@ class Q
   greaterequal(other)
     {if (other instanceof Q) return this.n*other.d>=other.n*this.d;
     else throw 'Expected other instanceof Q';}
-
   equals(other)
   {
     if (other instanceof Q)
@@ -227,13 +235,14 @@ class Q
       else return false;
     else throw 'Expected other instanceof Q';
   }
+
   multiply(other)
   {
     if (typeof other == 'bigint')
       return this.multiply(new Q(other));
     if (other instanceof Q)
     {
-      if (other.n==0n)
+      if (this.n==0n||other.n==0n)
         return ZERO;
       if (this.n==other.d&&this.d==other.n)
         return ONE;
@@ -287,7 +296,8 @@ const ZERO = new Q(0n,1n);
 const ONE = new Q(1n,1n);
 const TWO = new Q(2n,1n);
 const TEN = new Q(10n,1n);
-
+function min(a,b){if (a.gt(b))return b;return a;}
+function max(a,b){if (a.gt(b))return a;return b;}
 
 
 
@@ -350,7 +360,7 @@ class probdistrib
     if (scale instanceof Q || typeof scale == 'bigint' || (typeof scale == 'number' && scale.toString()==BigInt(scale).toString()))
       scale = new Q(scale);
     if (radius instanceof Q || typeof radius == 'bigint' || (typeof radius == 'number' && radius.toString()==BigInt(radius).toString()))
-      radius = new Q(scale);
+      radius = new Q(radius);
     if (offset instanceof Q || typeof offset == 'bigint' || (typeof offset == 'number' && offset.toString()==BigInt(offset).toString()))
       offset = new Q(offset);
     var ret = new probdistrib(0,-1);
@@ -358,27 +368,39 @@ class probdistrib
     {
       var val = new Q(this.weights[i].value);
 
-      var vs = val.m(scale);
-      var vr2 = val.m(radius).m(2n);
+      var vs = val.mu(scale);
+      var vr2 = val.mu(radius).mu(2n);
       var sdr = scale.di(radius);
 
-      var b_a = val.mu(scale.s(radius)).a(offset);
+      var be_a = val.mu(scale.s(radius));
+      var b_a = be_a.a(offset);
       var b_af = b_a.floor();
-      var b_b = val.mu(scale.a(radius)).a(offset);
-      var b_bc = b_a.ceiling();
+      var be_b = val.mu(scale.a(radius));
+      var b_b = be_b.a(offset);
+      var b_bc = b_b.ceiling();
       var denom = 1n;
-      for (var l=b_af;l.le(b_bc);l.a(1n))
+      for (var l=b_af;l.le(b_bc);l=l.a(1n))
       {
         var lm=l.s(q(1,2)).s(offset);
         var lp=l.a(q(1,2)).s(offset);
-        var x_aa=min(max(b_a,lm),vs);
-        var x_ab=min(max(b_a,lp),vs);
-        var x_ba=min(max(vs,lm)b_b);
-        var x_bb=min(max(vs,lp)b_b);
-        var x_ga=x_ab.m(x_ab).s(x_aa.m(x_aa)).di(vr2).a(ONE.s(sdr).mu(x_ab.s(x_aa)));
-        var x_gb=x_ba.m(x_ba).s(x_bb.m(x_bb)).di(vr2).a(ONE.a(sdr).mu(x_bb.s(x_ba)));
-        var x=x_ga+x_gb;
-        console.log(val.toString()+" "+l.toString()+" "+x.toString());
+        var x_aa=min(max(be_a,lm),vs);
+        var x_ab=min(max(be_a,lp),vs);
+        var x_ba=min(max(vs,lm),be_b);
+        var x_bb=min(max(vs,lp),be_b);
+        var x_ga=x_ab.mu(x_ab).s(x_aa.mu(x_aa)).di(vr2).a(ONE.s(sdr).mu(x_ab.s(x_aa)));
+        var x_gb=x_ba.mu(x_ba).s(x_bb.mu(x_bb)).di(vr2).a(ONE.a(sdr).mu(x_bb.s(x_ba)));
+        var x=x_ga.a(x_gb);
+        console.log("v:"+val.toDecimal(3)+" | l<"+l.toDecimal(1)+"> -> "+x.toDecimal(5)+";");
+        // var obj = {
+        //             "vars":{"scale":scale,"radius":radius,"offset":offset,
+        //                   "ret":ret,"val":val},
+        //             "region":{"be_a":be_a,"b_a":b_a,"b_af":b_af,"be_b":be_b,
+        //                     "b_b":b_b,"b_bc":b_bc},
+        //             "selection":{"l":l,"lm":lm,"lp":lp,"x_aa":x_aa,"x_ab":x_ab,
+        //                        "x_ba":x_ba,"x_bb":x_bb,"x_ga":x_ga,"x_gb":x_gb,
+        //                        "x":x}
+        //           };
+        // console.log(obj);
 
         // integral from newval-.5 to newval+.5 of triangle as Q.
         // a:
@@ -398,9 +420,10 @@ class probdistrib
       }
     }
 
-    for()
-      ret=ret.union(each(val));
-    return ret;
+    //TODO: recombine probs into one distribution.
+    // for()
+    //   ret=ret.union(each(val));
+    // return ret;
   }
 
   simplify()
@@ -530,32 +553,35 @@ function main()
   // pd2.simplify();
   // console.log(pd2);
 
-  console.log(5n instanceof BigInt)
-  var val = new Q(1,1);
-  console.log(val);
-  console.log(val.mu(15n));
-  val2 = val.mu(5n);
-  console.log(val2);
-  val = val.mu(17n);
-  console.log(val);
-  val3 = val.di(val2);
-  console.log(val3);
-  console.log(val.toDecimal());
-  console.log(val2.toDecimal());
-  console.log(val3.toDecimal());
-  pi = new Q(262452630335382199398n,83541266890691994833n);
-  console.log(pi.toString(150));
-  console.log(pi.toDecimal(150));
-  pir = new Q(262452630335382199398n,83541266890n);
-  console.log(pir.toDecimal(17));
-  console.log(pir.toDecimal(9));
-  console.log(pir.toDecimal(10));
-  console.log(pir.toDecimal(11));
-  console.log(pir.toDecimal(12));
-  r13o83s = new Q(350629275419n,669935023473116n);
-  console.log(r13o83s.toDecimal(5));
-  r13o83s = new Q(350629275419n,669935023473116n*669935023473116n);
-  console.log(r13o83s.toDecimal(5));
+  // console.log(5n instanceof BigInt)
+  // var val = new Q(1,1);
+  // console.log(val);
+  // console.log(val.mu(15n));
+  // val2 = val.mu(5n);
+  // console.log(val2);
+  // val = val.mu(17n);
+  // console.log(val);
+  // val3 = val.di(val2);
+  // console.log(val3);
+  // console.log(val.toDecimal());
+  // console.log(val2.toDecimal());
+  // console.log(val3.toDecimal());
+  // pi = new Q(262452630335382199398n,83541266890691994833n);
+  // console.log(pi.toString(150));
+  // console.log(pi.toDecimal(150));
+  // pir = new Q(262452630335382199398n,83541266890n);
+  // console.log(pir.toDecimal(17));
+  // console.log(pir.toDecimal(9));
+  // console.log(pir.toDecimal(10));
+  // console.log(pir.toDecimal(11));
+  // console.log(pir.toDecimal(12));
+  // r13o83s = new Q(350629275419n,669935023473116n);
+  // console.log(r13o83s.toDecimal(5));
+  // r13o83s = new Q(350629275419n,669935023473116n*669935023473116n);
+  // console.log(r13o83s.toDecimal(5));
+
+
+  new probdistrib(2,3).triangleFloatDistMultRounded(q(47,10),q(187,296),q(73,53));
 }
 main();
 
