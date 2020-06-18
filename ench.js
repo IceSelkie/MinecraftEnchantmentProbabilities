@@ -428,7 +428,7 @@ class ProbDist
         var x_gb=x_ba.mu(x_ba).s(x_bb.mu(x_bb)).di(vr2).a(ONE.a(sdr).mu(x_bb.s(x_ba)));
         var x=x_ga.a(x_gb);
         if (x.simplify().n!=0n)
-          probs.push({"l":l.n,"x":x});
+          probs.push({"l":Number(l.n),"x":x});
         //console.log("v:"+val.toDecimal(3)+" | l<"+l.toDecimal(1)+"> -> "+x.toString()+";");
       }
       // console.log(probs);
@@ -460,14 +460,15 @@ class ProbDist
       }
       for (var j=0;j<probs.length;j++)
       {
-        var index = ret.l.indexOf(this.weights[i].value);
-        if (index==-1)
+        var SPLIT=false;
+        var index = ret.l.indexOf(Number(probs[j].l));
+        if (SPLIT||index==-1)
         {
-          ret.l.push(probs[j].l);
+          ret.l.push(Number(probs[j].l));
           ret.x.push(q(probs[j].x,fact));
         }
         else
-          ret.x[index].a(q(probs[j],fact));
+          ret.x[index]=ret.x[index].a(q(probs[j].x,fact));
       }
       // console.log(ret);
     }
@@ -618,6 +619,11 @@ function main()
   // console.log(r13o83s.toDecimal(5));
   // r13o83s = new Q(350629275419n,669935023473116n*669935023473116n);
   // console.log(r13o83s.toDecimal(5));
+  // var q1= q(40,162);
+  // var q2= q(162,1152);
+  // console.log(q1+" + "+q2+" = "+(q1.a(q2)));
+
+
 
   var dist = new ProbDist(0,1).add(new ProbDist(0,1)).add(15);
   // var dist = new ProbDist(15);
