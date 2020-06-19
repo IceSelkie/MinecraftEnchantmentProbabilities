@@ -136,8 +136,8 @@ function bProduct(facts)
 /**
  * Q lib
  * @author Stanley S
- * @version b1.1
- * @date 2020-06-16
+ * @version b1.3
+ * @date 2020-06-19
 **/
 class Q
 {
@@ -177,18 +177,20 @@ class Q
   // Width is approximately how many sigfigs to show.
   // Should be within 2 of this value, but won't be exact.
   // Exponential/scientific form not implemented.
-  toDecimal(width=10)
+  toDecimal(quality=10,width=false)
   {
-    // the E+pow
-    var pow=this.n.toString().length-this.d.toString().length;
+    var ns=this.n.toString();
+    var ds=this.d.toString();
+
+    // the E+pow; offbyone due to 1/2 vs 5/10
+    var pow=ns.length-ds.length+(Number(ns.substring(0,1))/Number(ds.substring(0,1))>1?1:0);
     var p = 1n;
-    for (var i=0; i<width-pow; i++)
+    for (var i=0; i<quality-pow; i++)
       p*=10n;
-    var str = (this.n*p/this.d).toString()
-    while (str.length<width-pow+1)
-      str = "0"+str;
+    var str = (this.mu(p).r().n).toString();
+    str = "0".repeat(str.length<quality-pow+1?quality-pow+1-str.length:0)+str;
     if (str.length>pow)
-      str = str.substring(0,str.length-(width-pow))+"."+str.substring(str.length-(width-pow));
+      str = str.substring(0,str.length-(quality-pow))+"."+str.substring(str.length-(quality-pow));
     return str;
   }
   simplify()
@@ -216,9 +218,10 @@ class Q
   reci(){return this.reciprocal();}   //RECIprocal
   neg(){return this.negate();}        //NEGate
 
-  rt(){return this.truncate();}       //RoundTruncate
+  t(){return this.truncate();}        //Truncate
   r(){return this.round();}           //Round
   ro(){return this.roundout();}       //RoundOut
+  rn(o){return this.roundtonearest(o);}       //RoundtoNearest...
 
   isp(){return this.isposative();}    //ISPosative
   isz(){return this.iszero()}         //ISZero
@@ -242,8 +245,11 @@ class Q
   truncate(){return new Q(this.n/this.d);}
   round(){return this.multiply(2n).truncate().add(1n).divide(2n).truncate();}
   roundout()
-    {if (this.n%this.d==0) return this;
+    {if (this.n%this.d==0) return this.truncate();
     return this.truncate().add(1n);}
+  roundtonearest(other)
+    {if (!(other instanceof Q)) other = new Q(other);
+    return this.divide(other).round().multiply(other);}
   floor() {return this.isposative()?this.truncate():this.roundout();}
   ceiling() {return this.isnegative()?this.truncate():this.roundout();}
 
@@ -283,10 +289,10 @@ class Q
       return this.multiply(new Q(other));
     if (other instanceof Q)
     {
-      if (this.n==0n||other.n==0n)
-        return ZERO;
-      if (this.n==other.d&&this.d==other.n)
-        return ONE;
+      if (this.d==0n) throw 'This denominator cannot be 0.'
+      if (other.d==0n) throw 'Other denominator cannot be 0.'
+      if (this.n==0n||other.n==0n) return ZERO;
+      if (this.n==other.d&&this.d==other.n) return ONE;
       if ((this.n%other.d==0&&other.d!=1n)||(other.n%this.d==0&&this.d!=1n)||(this.d%other.n==0&&other.n!=1n)||(other.d%this.n==0&&this.n!=1n))
       {
         if (this.n%other.d==0&&other.d!=1n)
@@ -544,13 +550,29 @@ class ProbDist
 
 
 
-  toString(fancy=false, sorted=true)
+  toString(fancy=0)
   {
-    if (sorted)
-      this.wts.sort(function(a,b){return -a.val+b.val;})
+    // if (sorted)
+    // this.wts.sort(function(a,b){return a.val-b.val;})
+
     var ret="{\n";
-    for (var i=0;i<this.weights.length;i++)
-      ret+="  "+this.weights[i].value+"  ->  "+q(this.weights[i].weight*100n,this.total).toDecimal(5)+"%\n"
+    if (fancy<=1)
+      for (var i=0;i<this.weights.length;i++)
+        ret+="  "+this.weights[i].value+"  ->  "+q(this.weights[i].weight*100n,this.total).toDecimal(5)+"%\n"
+    else
+    {
+      var maxweight=0n;
+      for (var i=0; i<this.weights.length; i++)
+        if (maxweight<this.weights[i].weight) maxweight=this.weights[i].weight;
+      maxweight = q(maxweight);
+      for (var i=0;i<this.weights.length;i++)
+      {
+        var rep = Number(q(this.weights[i].weight).di(maxweight).mu(BigInt(fancy)).roundout().n);
+        ret+="  "+this.weights[i].value+" - "
+        +q(this.weights[i].weight*100n,this.total).toDecimal(10).substring(0,5)
+        +"% |"+("*".repeat(rep))+"\n";
+      }
+    }
     return ret+"}";
   }
 }
@@ -622,21 +644,58 @@ function main()
   // var q1= q(40,162);
   // var q2= q(162,1152);
   // console.log(q1+" + "+q2+" = "+(q1.a(q2)));
+  // var q3 = q(1261337193700n,25226743874n);
+  // console.log(q3);
+  // console.log(q3.t());
+  // console.log(q3.r());
+  // console.log(q3.ro());
+  // console.log(q(1,2).toDecimal(5));
+  // console.log(q(5,10).toDecimal(5));
+  // console.log(q(9,18).toDecimal(5));
+  // console.log(q(9,19).toDecimal(5));
+  // console.log(q(0,5).toDecimal(5));
+  // console.log(q(47,51).toDecimal(5));
+  // console.log(q(92,181).toDecimal(5));
+  // console.log(q(67*7,532).toDecimal(5));
+  // console.log(q(681,937).toDecimal(5));
+  // console.log(q(59,226).toDecimal(5));
+  // console.log(q(68,582).toDecimal(5));
+  // console.log(q(183,192).toDecimal(5));
+  // console.log(q(4,13).toDecimal(5));
+  // console.log(q(302,497).toDecimal(5));
+  // console.log(q(497).rn(5).toDecimal(5));
+  // console.log(q(498).rn(5).toDecimal(5));
+  // console.log(q(492,582).rn(q(1,7)).toDecimal(5));
+  // console.log(q(424,582).rn(q(1,7)).toDecimal(5));
 
 
 
-  var dist = new ProbDist(0,1).add(new ProbDist(0,1)).add(15);
-  // var dist = new ProbDist(15);
-  // var dist = new ProbDist(16);
-  // var dist = new ProbDist(17);
-  console.log(dist);
-  console.log(dist.toString());
-  dist = dist.triangleFloatModifier(1,q(3,20));
-  // dist = dist.triangleFloatModifier(q(47,10),q(187,296),q(73,53));
-  console.log(dist);
-  console.log(dist.toString());
+  // var dist = new ProbDist(0,1).add(new ProbDist(0,1)).add(15);
+  // // var dist = new ProbDist(15);
+  // // var dist = new ProbDist(16);
+  // // var dist = new ProbDist(17);
+  // console.log(dist);
+  // console.log(dist.toString());
+  // dist = dist.triangleFloatModifier(1,q(3,20));
+  // // dist = dist.triangleFloatModifier(q(47,10),q(187,296),q(73,53));
+  // console.log(dist);
+  // console.log(dist.toString());
 
-  // enchant(10, 17, null, [], 0);
+
+  // for (var i=0; i<ENCHANTMENTS.all.length; i++)
+  // {
+  //   var out = ENCHANTMENTS.all[i].name;
+  //   out+=" ".repeat(28-out.length);
+  //   for (var j=1; j<=ENCHANTMENTS.all[i].maxlevel; j++)
+  // }
+
+  //enchant(10, new ProbDist(5,17), null, [], 0);
+  enchant(1, new ProbDist(30), null, [], 0);
+  // Max level:
+  // (25) 49 gold armor (thorns 3 not possible (50))
+  // (22) 47 Gold tool
+  // (1)  36 bow/rod/etc (power 5 not possible (41))
+  // 
 }
 main();
 
@@ -647,8 +706,8 @@ main();
 /**
  * Enchantment Code
  * @author Stanley S
- * @version 0.01
- * @date 2020-06-14
+ * @version 0.03
+ * @date 2020-06-19
 **/
 function enchant(enchantability, level, enchantments, conflicts, remove)
 {
@@ -670,10 +729,115 @@ function enchant(enchantability, level, enchantments, conflicts, remove)
     console.log(level);
 
     //1.15 triangleFloatModifier
-    // level = level.triangleFloatModifier(1, q(3,20));
-    // console.log(level);
-  }
+    level = level.triangleFloatModifier(1, q(3,20));
+    console.log(level);
+    console.log(level.toString());
+    console.log(level.toString(50));
 
+    //var final_level = level.bind(1,null);
+  }
+}
+
+class Enchantment
+{
+  constructor(name, maxlevel, relativeweight, k, m)
+  {
+    this.name=name;
+    this.maxlevel=maxlevel;
+    this.relativeweight=relativeweight;
+    this.k=k;
+    this.m=k;
+  }
+  powerFromLevel(level)
+  {
+    return (level-this.m)/this.k;
+  }
+  levelFromPower(power)
+  {
+    return (power-1)*this.k+this.m;
+  }
+}
+const ENCHANTMENTS = {
+    UNB: new Enchantment('Unbreaking', 3, 5, 8, 5);
+    MEND: new Enchantment('Mending', 1, 2, null, 25);
+    VANISH: new Enchantment('Vanishing', 1, 1, null, 25);
+
+    PROT: new Enchantment('Protection',4, 10, 11, 1);
+    FP: new Enchantment('Fire Protection',4, 5, 8, 10);
+    FF: new Enchantment('Feather Falling',4, 5, 6, 5);
+    BP: new Enchantment('Blast Protection', 4, 2, 8, 5);
+    PP: new Enchantment('Projectile Protection', 4, 5, 6, 3);
+    RESP: new Enchantment('Respiration', 3, 2, 10, 10);
+    AA: new Enchantment('Aqua Affinity', 1, 2, null, 1);
+    THORN: new Enchantment('Thorns', 3, 1, 20, 10);
+    DS: new Enchantment('Depth Strider', 3, 2, 10, 10);
+    FW: new Enchantment('Frost Walker', 2, 1, 10, 10);
+    BIND: new Enchantment('Curse of Binding', 1, 1, null, 25);
+
+    SHARP: new Enchantment('Sharpness', 5, 10, 11, 1);
+    SMITE: new Enchantment('Smite', 5, 5, 8, 5);
+    BANE: new Enchantment('Bane of Arthropods', 5, 5, 8, 5);
+    KB: new Enchantment('Knockback', 2, 5, 20, 5);
+    FA: new Enchantment('Fire Aspect', 2, 2, 20, 10);
+    LOOT: new Enchantment('Looting', 3, 2, 9, 15);
+    SE: new Enchantment('Sweeping Edge', 3, 2, 9, 5);
+
+    PWR: new Enchantment('Power', 5, 10, 10, 1);
+    PUNCH: new Enchantment('Punch', 2, 2, 20, 12);
+    FLA: new Enchantment('Flame', 1, 2, null, 20);
+    INF: new Enchantment('Infinity', 1, 1, null, 20);
+
+    EFF: new Enchantment('Efficiency', 5, 10, 10, 1);
+    SILK: new Enchantment('Silk Touch', 1, 1, null, 15);
+    FORT: new Enchantment('Fortune', 3, 2, 9, 15);
+
+    SEA: new Enchantment('Luck of the Sea', 3, 2, 9, 15);
+    LURE: new Enchantment('Lure', 3, 2, 9, 15);
+
+
+
+    CHANNEL: new Enchantment('Channeling', 1, 1, null, 25);
+    IMP: new Enchantment('Impaling', 5, 2, 8, 1);
+    LOY: new Enchantment('Loyalty', 3, 5, 7, 12);
+    RIP: new Enchantment('Riptide', 3, 2, 7, 17);
+
+    MS: new Enchantment('Multishot', 1, 2, null, 20);
+    PIERCE: new Enchantment('Piercing', 4, 10, 10, 1);
+    QC: new Enchantment('Quick Charge', 3, 5, 20, 12);
+
+    // Upcoming
+    SS: new Enchantment('Soul Speed', 3, 1, undefined, undefined); // 1.16
+    CHOP: new Enchantment('Chopping', 3, undefined, undefined, undefined); // combat
+
+
+    conflicts:  [
+                  [PROT, FP, BP, PP],
+                  [DS, FW],
+                  [SHARP, SMITE, BANE, CHOP],
+                  [INF, MEND],
+                  [SILK, FORT],
+                  [CHANNEL, RIP],
+                  [RIP, LOY],
+                  [MS, PIERCE]
+                ];
+
+    helm: [UNB, PROT, FP, BP, PP, RESP, AA,  BIND,MEND,VANISH];
+    chest: [UNB, PROT, FP, BP, PP, THORN,  BIND,MEND,VANISH];
+    pants: [UNB, PROT, FP, BP, PP,  BIND,MEND,VANISH];
+    boots: [UNB, PROT, FP, FF, BP, PP, DS,  FW,BIND,MEND,VANISH]; //SS(treasure,special)
+
+    sword: [UNB, SHARP, SMITE, BANE, KB, FA, LOOT, SE,  MEND,VANISH];
+    bow: [UNB, PWR, PUNCH, FLA, INF,  MEND,VANISH];
+    tool: [UNB, EFF, SILK, FORT,  MEND,VANISH];
+    axe: [UNB, EFF, SILK, FORT,  MEND,VANISH]; //CHOP
+    rod: [UNB, SEA, LURE,  MEND,VANISH];
+
+    trident: [UNB, CHANNEL, IMP, LOY, RIP,  MEND,VANISH];
+    crossbow: [UNB, MS, PIERCE, QC,  MEND,VANISH];
+    book: [UNB, PROT, FP, FF, BP, PP, RESP, AA, THORN, DS, SHARP, SMITE, BANE,
+           KB, FA, LOOT, SE, PWR, PUNCH, FLA, INF, EFF, SILK, FORT, SEA, LURE,
+           CHANNEL, IMP, LOY, RIP, MS, PIERCE, QC,  MEND,VANISH,FW,BIND];
+    all: book
 }
 
 
