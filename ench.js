@@ -550,6 +550,40 @@ class ProbDist
 
 
 
+  bind(low, high)
+  {
+    // for each val,
+    //   if less than low, set to low;
+    //   else if higher than high, set to high.
+    var rett = 0n;
+    var retwts = [];
+    if (low==null && high==null) return this;
+    for (var i = 0; i<this.wts.length; i++)
+    {
+      var val = low!=null?high!=null?Math.min(Math.max(low,this.wts[i].v),high):Math.max(low,this.wts[i].v):Math.min(this.wts[i].v,high);
+      var changed = false;
+      for (var j = 0; j<retwts.length; j++)
+        if (retwts[j].v==val)
+        {
+          retwts[j].w+=this.wts[i].w;
+          changed=true;
+          break;
+        }
+      if (!changed)
+        retwts.push(new Pair(val,this.wts[i].w));
+      rett+=this.wts[i].w;
+    }
+
+    var ret = new ProbDist(0,-1);
+    ret.t=rett;
+    ret.wts=retwts;
+    if (ret.t!=this.t)
+      throw "Total and sum don't match! (was "+this.t+", and is now "+ret.t+")";
+    return ret;
+  }
+
+
+
   toString(fancy=0)
   {
     // if (sorted)
@@ -609,10 +643,14 @@ function enchant(enchantability, level, enchantments, conflicts, remove = false)
     //1.15 triangleFloatModifier
     level = level.triangleFloatModifier(1, q(3,20));
     console.log(level);
-    console.log(level.toString());
-    console.log(level.toString(50));
+    var final_level = level.bind(1,null);
 
-    //var final_level = level.bind(1,null);
+    // new ObjectDistribution(final_level, enchantments);
+
+    console.log(final_level);              // Raw Ratios
+    console.log(final_level.toString());   // Percents Table
+    console.log(final_level.toString(50)); // Star Graph
+
   }
 }
 
@@ -868,32 +906,32 @@ function main()
   // console.log(dist.toString());
 
 
-  for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
-  {
-    var out = ENCHANTMENT_SETS.all[i].name;
-    out+=" ".repeat(21-out.length);
-    for (var j=1; j<=ENCHANTMENT_SETS.all[i].maxlevel; j++)
-      out+="\t"+ENCHANTMENT_SETS.all[i].levelLowFromPower(j);
-    console.log(out);
-  }
-  var out1 = " ".repeat(21), out2 = " ".repeat(21);
-  for (var i=1; i<80-21; i++)
-    {out1+=Math.floor(i/10);out2+=i%10;}
-  console.log(out1);console.log(out2);
-  for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
-  {
-    var out = ENCHANTMENT_SETS.all[i].name;
-    out+=" ".repeat(21-out.length);
-  for (var j=1; j<80-21; j++)
-      out+=ENCHANTMENT_SETS.all[i].powerFromLevel(j);
-    console.log(out);
-  }
+  // for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
+  // {
+  //   var out = ENCHANTMENT_SETS.all[i].name;
+  //   out+=" ".repeat(21-out.length);
+  //   for (var j=1; j<=ENCHANTMENT_SETS.all[i].maxlevel; j++)
+  //     out+="\t"+ENCHANTMENT_SETS.all[i].levelLowFromPower(j);
+  //   console.log(out);
+  // }
+  // var out1 = " ".repeat(21), out2 = " ".repeat(21);
+  // for (var i=1; i<80-21; i++)
+  //   {out1+=Math.floor(i/10);out2+=i%10;}
+  // console.log(out1);console.log(out2);
+  // for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
+  // {
+  //   var out = ENCHANTMENT_SETS.all[i].name;
+  //   out+=" ".repeat(21-out.length);
+  // for (var j=1; j<80-21; j++)
+  //     out+=ENCHANTMENT_SETS.all[i].powerFromLevel(j);
+  //   console.log(out);
+  // }
 
-  for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
-    console.log(ENCHANTMENT_SETS.all[i].toString());
+  // for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
+  //   console.log(ENCHANTMENT_SETS.all[i].toString());
 
   //enchant(10, new ProbDist(5,17), null, [], 0);
-  enchant(10, new ProbDist(30), ENCHANTMENT_SETS.tool, CONFLICTS);
+  enchant(15, new ProbDist(30), ENCHANTMENT_SETS.tool, CONFLICTS);
   // Max level:
   // (25) 49 gold armor (thorns 3 not possible (50))
   // (22) 47 Gold tool
