@@ -345,8 +345,8 @@ function max(a,b){if (a.gt(b))return a;return b;}
 /**
  * Probabilities lib
  * @author Stanley S
- * @version 0.9
- * @date 2020-06-16
+ * @version 0.11
+ * @date 2020-07-06
 **/
 const maxStars=60
 
@@ -618,8 +618,8 @@ class ProbDist
 /**
  * Enchantment Code
  * @author Stanley S
- * @version 0.03
- * @date 2020-06-19
+ * @version 0.08
+ * @date 2020-07-06
 **/
 function enchant(enchantability, level, enchantments, conflicts, remove = false)
 {
