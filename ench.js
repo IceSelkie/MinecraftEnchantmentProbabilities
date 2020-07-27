@@ -2,8 +2,8 @@
 /**
  * Primes lib
  * @author Stanley S
- * @version 1.1
- * @date 2020-06-16
+ * @version 1.2
+ * @date 2020-07-27
 **/
 bprimes = [2n,3n];
 function extendPrimes()
@@ -128,7 +128,38 @@ function bProduct(facts)
     ret*=facts[i];
   return ret;
 }
+function bReduce(vals)
+{
+  if (vals.length==0) return vals;
+  if (vals.length==1) {vals[0]=1n; return vals;}
+  var gcd = bPrimeFactors(vals[0]);
+  for (var i=1;i<vals.length;i++)
+    gcd=bCofactors(gcd,vals[i])
+  gcd=bProduct(gcd);
+  for (var i=0;i<vals.length;i++)
+  {
+    if (vals[i]%gcd!=0n) throw 'simplify error: '+vals[i]+' ('+gcd+')';
+    vals[i]/=gcd;
+  }
+  return vals;
+}
+function qReduce(vals)
+{
+  if (vals.length==0) return [];
+  if (vals.length==1) if (vals[0].n==0n) return [0n]; else return [1n];
 
+  var lcm = bPrimeFactors(vals[0].d);
+  for (var i=1;i<vals.length;i++)
+    lcm=bAllFactors(lcm,vals[i].d);
+  lcm=bProduct(lcm);
+  ret=[];
+  for (var i=0;i<vals.length;i++)
+  {
+    if (lcm%vals[i].d!=0n) throw 'simplify error: '+lcm+' ('+vals[i].d+')';
+    ret[i]=vals[i].n*(lcm/vals[i].d);
+  }
+  return bReduce(ret);
+}
 
 
 
@@ -202,10 +233,7 @@ class Q
         this.n=this.d=1n;
       else
       {
-        var fact = bCofactors(this.n, this.d)
-        var common = 1n;
-        for (var i=0;i<fact.length;i++)
-          common*=fact[i];
+        var common = bProduct(bCofactors(this.n, this.d));
         if(this.n%common!=0||this.d%common!=0)
           throw "simplify error: "+this+" ("+common+")";
         this.n/=common;
@@ -345,8 +373,8 @@ function max(a,b){if (a.gt(b))return a;return b;}
 /**
  * Probabilities lib
  * @author Stanley S
- * @version 0.11
- * @date 2020-07-06
+ * @version 0.13
+ * @date 2020-07-27
 **/
 const maxStars=60
 
@@ -405,11 +433,13 @@ class ProbDist
       radius = new Q(radius);
     if (offset instanceof Q || typeof offset == 'bigint' || (typeof offset == 'number' && offset.toString()==BigInt(offset).toString()))
       offset = new Q(offset);
+
+    // To myself later: 'l' is the ench-level/'value', and 'x' is the integral value for that region, thus its 'weight'
     var ret = {"l":[],"x":[]};
     for (var i = 0; i<this.weights.length; i++)
     {
       var val = new Q(this.weights[i].value);
-      var probs = [];
+      var probs = {"l":[],"x":[]};
 
       var vs = val.mu(scale);
       var vr2 = val.mu(radius).mu(2n);
@@ -434,67 +464,43 @@ class ProbDist
         var x_gb=x_ba.mu(x_ba).s(x_bb.mu(x_bb)).di(vr2).a(ONE.a(sdr).mu(x_bb.s(x_ba)));
         var x=x_ga.a(x_gb);
         if (x.simplify().n!=0n)
-          probs.push({"l":Number(l.n),"x":x});
+        {
+          probs.l.push(Number(l.n))
+          probs.x.push(x);
+        }
         //console.log("v:"+val.toDecimal(3)+" | l<"+l.toDecimal(1)+"> -> "+x.toString()+";");
       }
+      // console.log('probs');
       // console.log(probs);
+      probs.x=qReduce(probs.x);
+      console.log('probs');
+      console.log(probs);
 
-      // Convert to same denominator
-      var fact = bPrimeFactors(probs[0].x.d);
-      for (var j=1;j<probs.length;j++)
-        fact=bAllFactors(fact,probs[j].x.d);
-      fact = bProduct(fact);
-      for (var j=0;j<probs.length;j++)
-        probs[j].x=fact/probs[j].x.d*probs[j].x.n;
-      // console.log(probs);
-
-      // Reduce to coprime.
-      fact = bPrimeFactors(probs[0].x);
-      for (var j=1;j<probs.length;j++)
-        fact=bCofactors(fact,probs[j].x);
-      fact=bProduct(fact);
-      for (var j=0;j<probs.length;j++)
-        probs[j].x/=fact;
-      // console.log(probs);
-
-      //multiply my freq and add to original.
-      fact=0n;
-      for (var j=0;j<probs.length;j++)
+      // multiply by its weight and add to ret.
+      var prob_tot=0n;
+      for (var j=0;j<probs.x.length;j++)
       {
-        fact+=probs[j].x;
-        probs[j].x*=this.weights[i].weight;
+        prob_tot+=probs.x[j];
+        probs.x[j]*=this.weights[i].weight;
       }
-      for (var j=0;j<probs.length;j++)
+      for (var j=0;j<probs.x.length;j++)
       {
-        var SPLIT=false;
-        var index = ret.l.indexOf(Number(probs[j].l));
-        if (SPLIT||index==-1)
+        var index = ret.l.indexOf(Number(probs.l[j]));
+        // console.log('index:'+index)
+        if (index==-1)
         {
-          ret.l.push(Number(probs[j].l));
-          ret.x.push(q(probs[j].x,fact));
+          ret.l.push(Number(probs.l[j]));
+          ret.x.push(q(probs.x[j],prob_tot));
         }
         else
-          ret.x[index]=ret.x[index].a(q(probs[j].x,fact));
+          ret.x[index]=ret.x[index].a(q(probs.x[j],prob_tot));
       }
+      // console.log('ret');
       // console.log(ret);
     }
-    // Convert to same denominator
-    var fact = bPrimeFactors(ret.x[0].d);
-    for (var j=1;j<ret.x.length;j++)
-      fact=bAllFactors(fact,ret.x[j].d);
-    fact = bProduct(fact);
-    for (var j=0;j<ret.x.length;j++)
-      ret.x[j]=fact/ret.x[j].d*ret.x[j].n;
-    // console.log(ret);
-
-    // Reduce to coprime.
-    fact = bPrimeFactors(ret.x[0]);
-    for (var j=1;j<ret.x.length;j++)
-      fact=bCofactors(fact,ret.x[j]);
-    fact=bProduct(fact);
-    for (var j=0;j<ret.x.length;j++)
-      ret.x[j]/=fact;
-    // console.log(ret);
+    ret.x=qReduce(ret.x);
+    console.log('ret');
+    console.log(ret);
 
     var ret2 = new ProbDist(0,-1);
     for (var j=0;j<ret.x.length;j++)
@@ -618,8 +624,8 @@ class ProbDist
 /**
  * Enchantment Code
  * @author Stanley S
- * @version 0.12
- * @date 2020-07-26
+ * @version 0.16
+ * @date 2020-07-27
 **/
 function enchant(enchantability, level, enchantments, conflicts, remove = false)
 {
@@ -645,18 +651,54 @@ function enchant(enchantability, level, enchantments, conflicts, remove = false)
     console.log(level);
     var final_level = level.bind(1,null);
 
-    var ret = new ProbDist(0, -1);
+    console.log(final_level);              // Raw Ratios
+    console.log(final_level.toString());   // Percents Table
+    console.log(final_level.toString(50)); // Star Graph
+
+
+    var ret = {items:[], wts:[]};
     /*var addEnchantmentsFromList=function;*/
     for (var i = 0; i < final_level.wts.length; i++)
     {
       //BAD
       enchPossFromLvl = getEnchs(enchantments, final_level.wts[i].value);
-      prob.push(addEnchantmentsFromList(new ItemEnchantment(), enchPossFromLvl, final_level.wts[i].value), wt);
+      var set = addEnchantmentsFromList(new ItemEnchantment(), enchPossFromLvl, final_level.wts[i].value);
+      var set_t = 0n;
+      for (var j=0;j<set.wt.length;j++)
+        set_t+=set.wt[j];
+      var found;
+      for (var j=0;j<set.val.length;j++)
+      {
+        found = false;
+        for (var k=0;k<ret.items.length;k++)
+        if (set.val[j].equals(ret.items[k]))
+        {
+          ret.wts[k].a(q(final_level.wts[i].weight*set.wt[j],set_t));
+          found = true;
+        }
+        if (!found)
+        {
+          ret.items.push(set.val[j]);
+          ret.wts.push(q(final_level.wts[i].weight*set.wt[j],set_t));
+        }
+      }
     }
-
-    console.log(final_level);              // Raw Ratios
-    console.log(final_level.toString());   // Percents Table
-    console.log(final_level.toString(50)); // Star Graph
+    for (var i=0;i<ret.items.length;i++)
+      ret.items[i]=ret.items[i].toString(); // pretty print is this line
+    // console.log(ret);
+    ret.wts=qReduce(ret.wts);
+    console.log(ret);
+    var ret_t=0n, ret_h=0n;
+    for (var i=0;i<ret.wts.length;i++)
+    {
+      ret_t+=ret.wts[i];
+      if (ret.wts[i]>ret_h)ret_h=ret.wts[i];
+    }
+    for (var i=0;i<ret.items.length;i++)
+      console.log("  "+ret.items[i]+"  ->  "+q(ret.wts[i]*100n,ret_t).toDecimal(5)+"%");
+    // for (var i=0;i<ret.items.length;i++)
+    // console.log("  "+ret.items[i]+" - "
+    //   +q(ret.wts[i]*100n,ret_t).toDecimal(25).substring(0,20)+"% |"+("*".repeat(Number(q(ret.wts[i]).di(ret_h).mu(BigInt(200)).roundout().n))));
 
   }
 }
@@ -737,6 +779,14 @@ function addEnchantmentsFromList(item, enchs, level)
   for (i=0;i<ret.wt.length;i++) ret.total+=ret.wt[i];
   return ret;
 }
+function getEnchs(enchantments, lvl)
+{
+  var ret = [];
+  for (var i=0;i<enchantments.length;i++)
+    if (enchantments[i].powerFromLevel(lvl)>=1)
+      ret.push(new SingleEnchantment(enchantments[i],enchantments[i].powerFromLevel(lvl)));
+  return ret;
+}
 
 class SingleEnchantment
 {
@@ -786,10 +836,10 @@ class ItemEnchantment
   {
     if (!(other instanceof ItemEnchantment))
       throw "Expected ItemEnchantment as other."
-    console.log('Comparing two Items: '+this.toString()+' and '+other.toString());
+    // console.log('Comparing two Items: '+this.toString()+' and '+other.toString());
     if (this.enchs.length!=other.enchs.length)
     {
-      console.log('Diff length, returning false;')
+      // console.log('Diff length, returning false;')
       return false;
     }
     for (var i=0;i<this.enchs.length;i++)
@@ -806,11 +856,11 @@ class ItemEnchantment
           // console.log(' No match yet... ('+j+':'+other.enchs[j].ench.shorthand+')')
       if (!found)
       {
-        console.log('Unable to find '+i+":"+this.enchs[i].ench.shorthand+', returning false;')
+        // console.log('Unable to find '+i+":"+this.enchs[i].ench.shorthand+', returning false;')
         return false;
       }
     }
-    console.log('Appears to match.')
+    // console.log('Appears to match.')
     return true;
   }
   eq(o)
@@ -1151,42 +1201,123 @@ function main()
   // for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
   //   console.log(ENCHANTMENT_SETS.all[i].toString());
 
-// //enchant(10, new ProbDist(5,17), null, [], 0);
-// enchant(15, new ProbDist(30), ENCHANTMENT_SETS.tool, CONFLICTS);
-// // Max level:
-// // (25) 49 gold armor (thorns 3 not possible (50))
-// // (22) 47 Gold tool
-// // (1)  36 bow/rod/etc (power 5 not possible (41))
-// // 
+ //enchant(10, new ProbDist(5,17), null, [], 0);
+ enchant(1, new ProbDist(5), ENCHANTMENT_SETS.bow, CONFLICTS);
+ // Max level:
+ // (25) 49 gold armor (thorns 3 not possible (50))
+ // (22) 47 Gold tool
+ // (1)  36 bow/rod/etc (power 5 not possible (41))
+ // 
 
 
-  var item = new ItemEnchantment();
-  //console.log(item.toString(true));
-  var en = new SingleEnchantment(ENCHANTMENTS.UNB, 3);
-  // console.log(item.applyable(en.ench)); item=item.add(en); console.log(item.toString(true));
-  //en = new SingleEnchantment(ENCHANTMENTS.SILK, 1)
-  //console.log(item.applyable(en.ench)); 
-  //item=item.add(en); 
-  //console.log(item.toString(true));
-  // en = new SingleEnchantment(ENCHANTMENTS.FORT, 3)
-  // console.log(item.applyable(en.ench)); item=item.add(en); console.log(item.toString(true));
+  // var item = new ItemEnchantment();
+  // //console.log(item.toString(true));
+  // var en = new SingleEnchantment(ENCHANTMENTS.UNB, 3);
+  // // console.log(item.applyable(en.ench)); item=item.add(en); console.log(item.toString(true));
+  // //en = new SingleEnchantment(ENCHANTMENTS.SILK, 1)
+  // //console.log(item.applyable(en.ench)); 
+  // //item=item.add(en); 
+  // //console.log(item.toString(true));
+  // // en = new SingleEnchantment(ENCHANTMENTS.FORT, 3)
+  // // console.log(item.applyable(en.ench)); item=item.add(en); console.log(item.toString(true));
 
 
-  var e=ENCHANTMENT_SETS.tool;
-  var se=[];
-  for (var i=0;i<e.length;i++)
-    se.push(new SingleEnchantment(e[i],e[i].powerFromLevel(30)));
+  // var e=ENCHANTMENT_SETS.tool;
+  // var se=[];
   // for (var i=0;i<e.length;i++)
-  //   console.log(new ItemEnchantment().add(se[i]).toString(true));
-  var o = addEnchantmentsFromList(item, se, 30);
-  //console.log(o);
-  // for (var i=0;i<o.val.length;i++)
-  //   o.val[i]=o.val[i].toString();
-  console.log(o);
+  //   se.push(new SingleEnchantment(e[i],e[i].powerFromLevel(30)));
+  // // for (var i=0;i<e.length;i++)
+  // //   console.log(new ItemEnchantment().add(se[i]).toString(true));
+  // var o = addEnchantmentsFromList(item, se, 30);
+  // //console.log(o);
+  // // for (var i=0;i<o.val.length;i++)
+  // //   o.val[i]=o.val[i].toString();
+  // console.log(o);
 }
-main();
 
 
+/**
+ * Unit Tests
+ * (because its not actually a bad idea)
+**/
+var tests=0;
+var tests_passed=0;
+var tests_failed=0;
+function runTest(test)
+{
+  tests++;
+  var failed=false;
+  try { test(); }
+  catch (err) { tests_failed++; console.trace(); failed=true; }
+  if (!failed) tests_passed++;
+}
+function unitTest()
+{
+  // bSqrt
+  runTest(testBSqrt);
+  // Primes Lib
+  runTest(testPrimes);
+  // runTest(testFactorize);
+  // runTest(testFactorsIntersect);
+  // runTest(testCofactors);
+  // runTest(testAllfactors);
+  // runTest(testProduct);
+  // runTest(testQReduce);
+  // runTest(testBReduce);
+  console.log(tests_passed+'/'+tests+' passed. '+tests_failed+' failed.');
+}
+function assert(bool, message)
+{
+  if (!bool)
+    if (message==undefined)
+      throw "Assertion failed. Run with '--trace-uncaught' to show stack trace.";
+    else
+      throw message;
+}
+function assertEq(expected, actual, message)
+{
+  if (!(expected===actual))
+    if (message==undefined)
+      throw "Assertion failed. Expected '"+expected+"' but was actually '"+actual+"'. Run with '--trace-uncaught' to show stack trace.";
+    else
+      throw "Assertion failed. Expected '"+expected+"' but was actually '"+actual+"'. "+message;
+}
+
+
+
+
+
+function testBSqrt()
+{
+  let sqrt_message = 'Square root of BigInt values.';
+  assert(0n==0n);
+  var exp = 0n;
+  for (var val=0n;val<=100n;val++)
+  {
+    if (val===1n||val===5n||val===9n||val===16n||val===25n||val===36n||val===49n||val===64n||val===81n||val===100n)
+      exp++;
+    assertEq(exp,bSqrt(val),sqrt_message);
+  }
+  assertEq(77n,bSqrt(77n*77n),sqrt_message);
+  assertEq(77n,bSqrt(78n*78n-1n),sqrt_message);
+  assertEq(5137n,bSqrt(5137n*5137n),sqrt_message);
+  assertEq(5137n,bSqrt(5138n*5138n-1n),sqrt_message);
+  assertEq(726145059471n,bSqrt(726145059472n*726145059472n-1n),sqrt_message);
+  assertEq(726145059472n,bSqrt(726145059472n*726145059472n),sqrt_message);
+  assertEq(726145059472n,bSqrt(726145059473n*726145059473n-1n),sqrt_message);
+  assertEq(726145059473n,bSqrt(726145059473n*726145059473n),sqrt_message);
+}
+function testPrimes()
+{
+
+}
+
+
+
+
+
+unitTest();
+//main();
 
 
 
@@ -1253,21 +1384,20 @@ main();
  * @author Anton
  * @link https://stackoverflow.com/a/53684036
 **/
-function bSqrt(value) {
-    if (value < 0n) {
-        throw 'square root of negative numbers is not supported'
-    }
-    if (value < 2n) {
-        return value;
-    }
-    function newtonIteration(n, x0) {
-        const x1 = ((n / x0) + x0) >> 1n;
-        if (x0 === x1 || x0 === (x1 - 1n)) {
-            return x0;
-        }
-        return newtonIteration(n, x1);
-    }
-    return newtonIteration(value, 1n);
+function bSqrt(value)
+{
+  if (value < 0n)
+    throw 'square root of negative numbers is not supported';
+  if (value < 2n)
+    return value;
+  function newtonIteration(n, x0)
+  {
+    const x1 = ((n / x0) + x0) >> 1n;
+    if (x0 === x1 || x0 === (x1 - 1n))
+      return x0;
+    return newtonIteration(n, x1);
+  }
+  return newtonIteration(value, 1n);
 }
 
 
