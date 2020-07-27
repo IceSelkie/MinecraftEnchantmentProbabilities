@@ -618,8 +618,8 @@ class ProbDist
 /**
  * Enchantment Code
  * @author Stanley S
- * @version 0.08
- * @date 2020-07-06
+ * @version 0.12
+ * @date 2020-07-26
 **/
 function enchant(enchantability, level, enchantments, conflicts, remove = false)
 {
@@ -645,7 +645,14 @@ function enchant(enchantability, level, enchantments, conflicts, remove = false)
     console.log(level);
     var final_level = level.bind(1,null);
 
-    // new ObjectDistribution(final_level, enchantments);
+    var ret = new ProbDist(0, -1);
+    /*var addEnchantmentsFromList=function;*/
+    for (var i = 0; i < final_level.wts.length; i++)
+    {
+      //BAD
+      enchPossFromLvl = getEnchs(enchantments, final_level.wts[i].value);
+      prob.push(addEnchantmentsFromList(new ItemEnchantment(), enchPossFromLvl, final_level.wts[i].value), wt);
+    }
 
     console.log(final_level);              // Raw Ratios
     console.log(final_level.toString());   // Percents Table
@@ -653,11 +660,207 @@ function enchant(enchantability, level, enchantments, conflicts, remove = false)
 
   }
 }
+function addEnchantmentsFromList(item, enchs, level)
+{
+  // console.log('Called on: '+item.toString());
+  /*let item := [type enchantment]*/
+  var ret={val:[],wt:[]};
+  var newitem, owt, next, i, j, prev, k;
+  var multi=1n;
+  for (i=0; i<enchs.length; i++)
+  {
+    // console.log(item.applyable(enchs[i].ench)+' - '+item.toString()+':'+enchs[i].ench.shorthand)
+    if (item.applyable(enchs[i].ench))
+    {
+      newitem = item.add(enchs[i]);
+      // console.log('Considering new item: '+newitem.toString());
+      prev=false;
+      for (j=0;j<ret.val.length&&!prev;j++) 
+        if (newitem.equals(ret.val[j]))
+          { ret.wt[k]+=multi*BigInt(enchs[i].ench.relativeweight*(Math.max(0,50-(level+1)))); prev=true; }
+      if (!prev)
+      {
+        ret.val.push(newitem);
+        ret.wt.push(multi*BigInt(enchs[i].ench.relativeweight*(Math.max(0,50-(level+1)))));
+      }
 
+      // console.log(newitem.toString()+' has weight of '+ret.wt[ret.wt.length-1]+' for level:'+level);
+
+      // call it recursively
+      owt = multi*BigInt(enchs[i].ench.relativeweight*(Math.min(50,level+1)));
+      // console.log('More enchs'+' should have weight of '+owt);
+      next=addEnchantmentsFromList(newitem, enchs, Math.trunc(level/2));
+      // console.log('Returning to: '+item.toString());
+      for (j=0;j<ret.val.length;j++)
+        ret.wt[j]*=next.total;
+      multi*=next.total;
+      for (j=0;j<next.val.length;j++)
+      {
+        prev=false;
+        for (k=0;k<ret.val.length&&!prev;k++)
+          if (ret.val[k].equals(next.val[j]))
+          {
+            // console.log('Found match ('+ret.val[k].toString()+') for '+next.val[j].toString());
+            ret.wt[k]+=owt*next.wt[j];
+            prev=true;
+          }
+        if (!prev)
+        {
+          // console.log('No match for '+next.val[j].toString()+'; adding as new entry to ret.');
+          ret.val.push(next.val[j]);
+          ret.wt.push(owt*next.wt[j]);
+        }
+      }
+      // console.log('Done adding from call. Now:');
+      // ret.str=[]; ret.original=item.toString(); ret.lvl=level;ret.total=0n;
+      // for (var k=0;k<ret.wt.length;k++){ret.total+=ret.wt[k];ret.str[k]=ret.val[k].toString();}
+      // console.log(ret);
+      // delete ret.str;delete ret.original;delete ret.lvl;
+    }
+  }
+  if (ret.val.length==0)
+  {
+    ret.val.push(item);
+    ret.wt.push(1n);
+  }
+  else
+  {
+    // Simplify this mess.
+  }
+
+  // console.log('Finishing method. Returning:');
+  // ret.str=[]; ret.original=item.toString(); ret.lvl=level;ret.total=0n;
+  // for (var i=0;i<ret.wt.length;i++){ret.total+=ret.wt[i];ret.str[i]=ret.val[i].toString();}
+  // console.log(ret);
+  // delete ret.str;delete ret.original;delete ret.lvl;
+  ret.total=0n;
+  for (i=0;i<ret.wt.length;i++) ret.total+=ret.wt[i];
+  return ret;
+}
+
+class SingleEnchantment
+{
+  constructor(ench, lvl)
+  {
+    this.ench=ench;
+    this.lvl=/*ench.powerFromLevel*/(lvl);
+  }
+  equals(other)
+  {
+    return this.ench==other.ench&&this.lvl==other.lvl;
+  }
+}
+class ItemEnchantment
+{
+  constructor()
+  {
+    /*this.enchs[i] typeof SingleEnchatment*/
+    this.enchs=[];
+  }
+
+  applyable(enchantment, conflicts=CONFLICTS)
+  {
+    /*enchantment typeof Enchantment*/
+    for (var i=0; i<this.enchs.length; i++)
+      if (this.enchs[i].ench == enchantment)
+        return false;
+    // For each set of conflicts
+      // check each listed conflict for this proposed enchantment. ...
+        // ... If it is there, then we need to make sure it wont conflict.
+    for (var i=0; i<conflicts.length; i++)
+      for (var j=0; j<conflicts[i].length; j++)
+        if (conflicts[i][j] == enchantment)
+          // now check to see if any of the conflicts in this set
+            // are in this items enchants
+              // if there is
+                // its a conflict.
+          for (var k=0; k<conflicts[i].length; k++)
+            if (k!=j)
+              for (var l=0; l<this.enchs.length; l++)
+                if (conflicts[i][k] == this.enchs[l].ench)
+                  return false;
+      return true;
+  }
+
+  equals(other)
+  {
+    if (!(other instanceof ItemEnchantment))
+      throw "Expected ItemEnchantment as other."
+    console.log('Comparing two Items: '+this.toString()+' and '+other.toString());
+    if (this.enchs.length!=other.enchs.length)
+    {
+      console.log('Diff length, returning false;')
+      return false;
+    }
+    for (var i=0;i<this.enchs.length;i++)
+    {
+      // console.log('Searching for enchantment '+i+":"+this.enchs[i].ench.shorthand+' in other...');
+      var found=false;
+      for (var j=0;j<this.enchs.length&&!found;j++)
+        if (this.enchs[i].equals(other.enchs[j]))
+        {
+          // console.log(' Found at '+j+':'+other.enchs[j].ench.shorthand+'.');
+          found = true;
+        }
+        // else
+          // console.log(' No match yet... ('+j+':'+other.enchs[j].ench.shorthand+')')
+      if (!found)
+      {
+        console.log('Unable to find '+i+":"+this.enchs[i].ench.shorthand+', returning false;')
+        return false;
+      }
+    }
+    console.log('Appears to match.')
+    return true;
+  }
+  eq(o)
+  {
+    var ret = this.toString().equals(o.toString());
+    var ret2 = this.equals(o);
+    if (ret!=ret2)
+      throw 'Equals failed ('+ret+','+ret2+'); ['+this.toString()+'] ['+o.toString()+']'
+    return ret;
+  }
+  add(singleench)
+  {
+    if (!(singleench instanceof SingleEnchantment))
+      throw "Expected SingleEnchantment";
+    var o = new ItemEnchantment();
+    for (var i=0;i<this.enchs.length;i++)
+    {
+      o.enchs.push(this.enchs[i]);
+    }
+    o.enchs.push(singleench);
+    return o;
+  }
+  toString(expanded=false)
+  {
+    var ret = '';
+    var str = null;
+    var index = -1;
+    var roman=function(n){if(n<1)return n.toString();if(n<4)return 'I'.repeat(n);if(n<9) return 'I'.repeat(Math.max(0,5-n))+'V'+'I'.repeat(Math.max(0,n-5)); return n;}
+    for (var i=0;i<this.enchs.length;i++)
+    {
+      /** / index=i; / **/
+      for (var j=0;j<this.enchs.length;j++)
+        if((str==null||this.enchs[j].ench.name>str)&&
+              (index==-1||this.enchs[j].ench.name<this.enchs[index].ench.name))
+          index=j;
+      if (index==-1) throw "Cannot find next enchantment. (len="+this.enchs.length+",index="+index+")";
+      str=this.enchs[index];
+      ret+=expanded?str.ench.name+' '+roman(str.lvl)+(i!=this.enchs.length-1?', ':''):str.ench.shorthand+str.lvl;
+      str=str.ench.name;
+      index=-1;
+    }
+    //console.log(this)
+    return ret;
+  }
+}
 class Enchantment
 {
-  constructor(name, maxlevel, relativeweight, k, m, m2=null, k2=null, max=50)
+  constructor(shorthand, name, maxlevel, relativeweight, k, m, m2=null, k2=null, max=50)
   {
+    this.shorthand=shorthand;
     this.name=name;
     this.maxlevel=maxlevel;
     this.relativeweight=relativeweight;
@@ -700,61 +903,61 @@ class Enchantment
   }
 }
 const ENCHANTMENTS = {
-    UNB: new Enchantment('Unbreaking', 3, 5, 8, 5, 61, 10),
-    MEND: new Enchantment('Mending', 1, 2, null, 25, 75),
-    VANISH: new Enchantment('Vanishing', 1, 1, null, 25),
+    UNB: new Enchantment('UNB', 'Unbreaking', 3, 5, 8, 5, 61, 10),
+    MEND: new Enchantment('MEND', 'Mending', 1, 2, null, 25, 75),
+    VAN: new Enchantment('VAN', 'Vanishing', 1, 1, null, 25),
 
-    PROT: new Enchantment('Protection',4, 10, 11, 1, 12),
-    FP: new Enchantment('Fire Protection',4, 5, 8, 10, 18),
-    FF: new Enchantment('Feather Falling',4, 5, 6, 5, 11),
-    BP: new Enchantment('Blast Protection', 4, 2, 8, 5, 13),
-    PP: new Enchantment('Projectile Protection', 4, 5, 6, 3, 9),
-    RESP: new Enchantment('Respiration', 3, 2, 10, 10, 40),
-    AA: new Enchantment('Aqua Affinity', 1, 2, null, 1, 41),
-    THORN: new Enchantment('Thorns', 3, 1, 20, 10, 61, 10),
-    DS: new Enchantment('Depth Strider', 3, 2, 10, 10, 25),
-    FW: new Enchantment('Frost Walker', 2, 1, 10, 10, 25),
-    BIND: new Enchantment('Curse of Binding', 1, 1, null, 25),
+    PROT: new Enchantment('PROT', 'Protection',4, 10, 11, 1, 12),
+    FP: new Enchantment('FP', 'Fire Protection',4, 5, 8, 10, 18),
+    FF: new Enchantment('FF', 'Feather Falling',4, 5, 6, 5, 11),
+    BP: new Enchantment('BP', 'Blast Protection', 4, 2, 8, 5, 13),
+    PP: new Enchantment('PP', 'Projectile Protection', 4, 5, 6, 3, 9),
+    RESP: new Enchantment('RESP', 'Respiration', 3, 2, 10, 10, 40),
+    AA: new Enchantment('AA', 'Aqua Affinity', 1, 2, null, 1, 41),
+    THRN: new Enchantment('THRN', 'Thorns', 3, 1, 20, 10, 61, 10),
+    DS: new Enchantment('DS', 'Depth Strider', 3, 2, 10, 10, 25),
+    FW: new Enchantment('FW', 'Frost Walker', 2, 1, 10, 10, 25),
+    BIND: new Enchantment('BIND', 'Curse of Binding', 1, 1, null, 25),
 
-    SHARP: new Enchantment('Sharpness', 5, 10, 11, 1, 21),
-    SMITE: new Enchantment('Smite', 5, 5, 8, 5, 25),
-    BANE: new Enchantment('Bane of Arthropods', 5, 5, 8, 5, 25),
-    KB: new Enchantment('Knockback', 2, 5, 20, 5, 61, 10),
-    FA: new Enchantment('Fire Aspect', 2, 2, 20, 10, 61, 10),
-    LOOT: new Enchantment('Looting', 3, 2, 9, 15, 61, 10),
-    SE: new Enchantment('Sweeping Edge', 3, 2, 9, 5, 20),
+    SRP: new Enchantment('SRP', 'Sharpness', 5, 10, 11, 1, 21),
+    SMITE: new Enchantment('SMITE', 'Smite', 5, 5, 8, 5, 25),
+    BANE: new Enchantment('BANE', 'Bane of Arthropods', 5, 5, 8, 5, 25),
+    KB: new Enchantment('KB', 'Knockback', 2, 5, 20, 5, 61, 10),
+    FA: new Enchantment('FA', 'Fire Aspect', 2, 2, 20, 10, 61, 10),
+    LT: new Enchantment('LT', 'Looting', 3, 2, 9, 15, 61, 10),
+    SE: new Enchantment('SE', 'Sweeping Edge', 3, 2, 9, 5, 20),
 
-    PWR: new Enchantment('Power', 5, 10, 10, 1, 16),
-    PUNCH: new Enchantment('Punch', 2, 2, 20, 12, 37),
-    FLA: new Enchantment('Flame', 1, 2, null, 20),
-    INF: new Enchantment('Infinity', 1, 1, null, 20),
+    PWR: new Enchantment('PWR', 'Power', 5, 10, 10, 1, 16),
+    PUNCH: new Enchantment('PUNCH', 'Punch', 2, 2, 20, 12, 37),
+    FLA: new Enchantment('FLA', 'Flame', 1, 2, null, 20),
+    INF: new Enchantment('INF', 'Infinity', 1, 1, null, 20),
 
-    EFF: new Enchantment('Efficiency', 5, 10, 10, 1, 61),
-    SILK: new Enchantment('Silk Touch', 1, 1, null, 15, 61),
-    FORT: new Enchantment('Fortune', 3, 2, 9, 15, 61, 10),
+    EFF: new Enchantment('EFF', 'Efficiency', 5, 10, 10, 1, 61),
+    SILK: new Enchantment('SILK', 'Silk Touch', 1, 1, null, 15, 61),
+    FORT: new Enchantment('FORT', 'Fortune', 3, 2, 9, 15, 61, 10),
 
-    SEA: new Enchantment('Luck of the Sea', 3, 2, 9, 15, 61, 10),
-    LURE: new Enchantment('Lure', 3, 2, 9, 15, 61, 10),
+    SEA: new Enchantment('SEA', 'Luck of the Sea', 3, 2, 9, 15, 61, 10),
+    LURE: new Enchantment('LURE', 'Lure', 3, 2, 9, 15, 61, 10),
 
 
 
-    CHANNEL: new Enchantment('Channeling', 1, 1, null, 25),
-    IMP: new Enchantment('Impaling', 5, 2, 8, 1, 21),
-    LOY: new Enchantment('Loyalty', 3, 5, 7, 12),
-    RIP: new Enchantment('Riptide', 3, 2, 7, 17),
+    CHANNEL: new Enchantment('CHANNEL', 'Channeling', 1, 1, null, 25),
+    IMP: new Enchantment('IMP', 'Impaling', 5, 2, 8, 1, 21),
+    LOY: new Enchantment('LOY', 'Loyalty', 3, 5, 7, 12),
+    RIP: new Enchantment('RIP', 'Riptide', 3, 2, 7, 17),
 
-    MS: new Enchantment('Multishot', 1, 2, null, 20),
-    PIERCE: new Enchantment('Piercing', 4, 10, 10, 1),
-    QC: new Enchantment('Quick Charge', 3, 5, 20, 12),
+    MS: new Enchantment('MS', 'Multishot', 1, 2, null, 20),
+    PIERCE: new Enchantment('PIERCE', 'Piercing', 4, 10, 10, 1),
+    QC: new Enchantment('QC', 'Quick Charge', 3, 5, 20, 12),
 
     // Upcoming
-    SS: new Enchantment('Soul Speed', 3, 1, undefined, undefined), // 1.16
-    CHOP: new Enchantment('Chopping', 3, undefined, undefined, undefined), // combat
+    SS: new Enchantment('SS', 'Soul Speed', 3, 1, undefined, undefined), // 1.16; non enchantable
+    CP: new Enchantment('CP', 'Chopping', 3, undefined, undefined, undefined), // combat
 };
 const CONFLICTS = [
                     [ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP],
                     [ENCHANTMENTS.DS, ENCHANTMENTS.FW],
-                    [ENCHANTMENTS.SHARP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.CHOP],
+                    [ENCHANTMENTS.SRP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.CP],
                     [ENCHANTMENTS.INF, ENCHANTMENTS.MEND],
                     [ENCHANTMENTS.SILK, ENCHANTMENTS.FORT],
                     [ENCHANTMENTS.CHANNEL, ENCHANTMENTS.RIP],
@@ -762,44 +965,62 @@ const CONFLICTS = [
                     [ENCHANTMENTS.MS, ENCHANTMENTS.PIERCE]
                   ];
 const ENCHANTMENT_SETS = {
-    helm: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.RESP, ENCHANTMENTS.AA,
-      ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
-    chest: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.THORN,
-      ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
-    pants: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP,
-      ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
-    boots: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.FF, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.DS,
-      ENCHANTMENTS.FW,ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH], //SS(treasure,special)
+    helm: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.RESP, ENCHANTMENTS.AA],
+    helmall: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.RESP, ENCHANTMENTS.AA,
+      ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
+    chest: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.THRN],
+    chestall: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.THRN,
+      ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
+    pants: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP],
+    pantsall: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.BP, ENCHANTMENTS.PP,
+      ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
+    boots: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.FF, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.DS],
+    bootsall: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.FF, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.DS,
+      ENCHANTMENTS.FW,ENCHANTMENTS.BIND,ENCHANTMENTS.MEND,ENCHANTMENTS.VAN], //SS(treasure,special)
 
-    sword: [ENCHANTMENTS.UNB, ENCHANTMENTS.SHARP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB, ENCHANTMENTS.FA, ENCHANTMENTS.LOOT, ENCHANTMENTS.SE,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
-    bow: [ENCHANTMENTS.UNB, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
-    tool: [ENCHANTMENTS.UNB, ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
-    axe: [ENCHANTMENTS.UNB, ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH], //CHOP
-    rod: [ENCHANTMENTS.UNB, ENCHANTMENTS.SEA, ENCHANTMENTS.LURE,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
+    sword: [ENCHANTMENTS.UNB, ENCHANTMENTS.SRP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB, ENCHANTMENTS.FA, ENCHANTMENTS.LT, ENCHANTMENTS.SE],
+    swordall: [ENCHANTMENTS.UNB, ENCHANTMENTS.SRP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB, ENCHANTMENTS.FA, ENCHANTMENTS.LT, ENCHANTMENTS.SE,
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
+    bow: [ENCHANTMENTS.UNB, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF],
+    bowall: [ENCHANTMENTS.UNB, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF,
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
+    tool: [ENCHANTMENTS.UNB, ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT],
+    toolall: [ENCHANTMENTS.UNB, ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT,
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
+    axe: [ENCHANTMENTS.UNB, ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT], //CP chopping (upcoming)
+    axeall: [ENCHANTMENTS.UNB, ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT,
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN], //CP chopping (upcoming)
+    rod: [ENCHANTMENTS.UNB, ENCHANTMENTS.SEA, ENCHANTMENTS.LURE],
+    rodall: [ENCHANTMENTS.UNB, ENCHANTMENTS.SEA, ENCHANTMENTS.LURE,
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
 
-    trident: [ENCHANTMENTS.UNB, ENCHANTMENTS.CHANNEL, ENCHANTMENTS.IMP, ENCHANTMENTS.LOY, ENCHANTMENTS.RIP,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
-    crossbow: [ENCHANTMENTS.UNB, ENCHANTMENTS.MS, ENCHANTMENTS.PIERCE, ENCHANTMENTS.QC,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH],
+    trident: [ENCHANTMENTS.UNB, ENCHANTMENTS.CHANNEL, ENCHANTMENTS.IMP, ENCHANTMENTS.LOY, ENCHANTMENTS.RIP],
+    tridentall: [ENCHANTMENTS.UNB, ENCHANTMENTS.CHANNEL, ENCHANTMENTS.IMP, ENCHANTMENTS.LOY, ENCHANTMENTS.RIP,
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
+    crossbow: [ENCHANTMENTS.UNB, ENCHANTMENTS.MS, ENCHANTMENTS.PIERCE, ENCHANTMENTS.QC],
+    crossbowall: [ENCHANTMENTS.UNB, ENCHANTMENTS.MS, ENCHANTMENTS.PIERCE, ENCHANTMENTS.QC,
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN],
 
+    // Note: Soul Speed not possible on book even with treasure enchatments enabled.
+    //       Must be bastion loot/piglin bartering to get a Soul Speed book.
     book: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.FF, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.RESP, 
-           ENCHANTMENTS.AA, ENCHANTMENTS.THORN, ENCHANTMENTS.DS, ENCHANTMENTS.SHARP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB,
-           ENCHANTMENTS.FA, ENCHANTMENTS.LOOT, ENCHANTMENTS.SE, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF, 
+           ENCHANTMENTS.AA, ENCHANTMENTS.THRN, ENCHANTMENTS.DS, ENCHANTMENTS.SRP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB,
+           ENCHANTMENTS.FA, ENCHANTMENTS.LT, ENCHANTMENTS.SE, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF, 
+           ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT, ENCHANTMENTS.SEA, ENCHANTMENTS.LURE, ENCHANTMENTS.CHANNEL, ENCHANTMENTS.IMP, 
+           ENCHANTMENTS.LOY, ENCHANTMENTS.RIP, ENCHANTMENTS.MS, ENCHANTMENTS.PIERCE, ENCHANTMENTS.QC],
+    bookall: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.FF, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.RESP, 
+           ENCHANTMENTS.AA, ENCHANTMENTS.THRN, ENCHANTMENTS.DS, ENCHANTMENTS.SRP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB,
+           ENCHANTMENTS.FA, ENCHANTMENTS.LT, ENCHANTMENTS.SE, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF, 
            ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT, ENCHANTMENTS.SEA, ENCHANTMENTS.LURE, ENCHANTMENTS.CHANNEL, ENCHANTMENTS.IMP, 
            ENCHANTMENTS.LOY, ENCHANTMENTS.RIP, ENCHANTMENTS.MS, ENCHANTMENTS.PIERCE, ENCHANTMENTS.QC,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH,ENCHANTMENTS.FW,ENCHANTMENTS.BIND],
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN,ENCHANTMENTS.FW,ENCHANTMENTS.BIND], //CP chopping (upcoming)
 
     all: [ENCHANTMENTS.UNB, ENCHANTMENTS.PROT, ENCHANTMENTS.FP, ENCHANTMENTS.FF, ENCHANTMENTS.BP, ENCHANTMENTS.PP, ENCHANTMENTS.RESP, 
-           ENCHANTMENTS.AA, ENCHANTMENTS.THORN, ENCHANTMENTS.DS, ENCHANTMENTS.SHARP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB,
-           ENCHANTMENTS.FA, ENCHANTMENTS.LOOT, ENCHANTMENTS.SE, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF, 
+           ENCHANTMENTS.AA, ENCHANTMENTS.THRN, ENCHANTMENTS.DS, ENCHANTMENTS.SRP, ENCHANTMENTS.SMITE, ENCHANTMENTS.BANE, ENCHANTMENTS.KB,
+           ENCHANTMENTS.FA, ENCHANTMENTS.LT, ENCHANTMENTS.SE, ENCHANTMENTS.PWR, ENCHANTMENTS.PUNCH, ENCHANTMENTS.FLA, ENCHANTMENTS.INF, 
            ENCHANTMENTS.EFF, ENCHANTMENTS.SILK, ENCHANTMENTS.FORT, ENCHANTMENTS.SEA, ENCHANTMENTS.LURE, ENCHANTMENTS.CHANNEL, ENCHANTMENTS.IMP, 
            ENCHANTMENTS.LOY, ENCHANTMENTS.RIP, ENCHANTMENTS.MS, ENCHANTMENTS.PIERCE, ENCHANTMENTS.QC,
-      ENCHANTMENTS.MEND,ENCHANTMENTS.VANISH,ENCHANTMENTS.FW,ENCHANTMENTS.BIND,ENCHANTMENTS.SS,ENCHANTMENTS.CHOP],
+      ENCHANTMENTS.MEND,ENCHANTMENTS.VAN,ENCHANTMENTS.FW,ENCHANTMENTS.BIND,ENCHANTMENTS.SS/*,ENCHANTMENTS.CP*/] //CP chopping (upcoming)
 }
 
 
@@ -930,13 +1151,38 @@ function main()
   // for (var i=0; i<ENCHANTMENT_SETS.all.length; i++)
   //   console.log(ENCHANTMENT_SETS.all[i].toString());
 
-  //enchant(10, new ProbDist(5,17), null, [], 0);
-  enchant(15, new ProbDist(30), ENCHANTMENT_SETS.tool, CONFLICTS);
-  // Max level:
-  // (25) 49 gold armor (thorns 3 not possible (50))
-  // (22) 47 Gold tool
-  // (1)  36 bow/rod/etc (power 5 not possible (41))
-  // 
+// //enchant(10, new ProbDist(5,17), null, [], 0);
+// enchant(15, new ProbDist(30), ENCHANTMENT_SETS.tool, CONFLICTS);
+// // Max level:
+// // (25) 49 gold armor (thorns 3 not possible (50))
+// // (22) 47 Gold tool
+// // (1)  36 bow/rod/etc (power 5 not possible (41))
+// // 
+
+
+  var item = new ItemEnchantment();
+  //console.log(item.toString(true));
+  var en = new SingleEnchantment(ENCHANTMENTS.UNB, 3);
+  // console.log(item.applyable(en.ench)); item=item.add(en); console.log(item.toString(true));
+  //en = new SingleEnchantment(ENCHANTMENTS.SILK, 1)
+  //console.log(item.applyable(en.ench)); 
+  //item=item.add(en); 
+  //console.log(item.toString(true));
+  // en = new SingleEnchantment(ENCHANTMENTS.FORT, 3)
+  // console.log(item.applyable(en.ench)); item=item.add(en); console.log(item.toString(true));
+
+
+  var e=ENCHANTMENT_SETS.tool;
+  var se=[];
+  for (var i=0;i<e.length;i++)
+    se.push(new SingleEnchantment(e[i],e[i].powerFromLevel(30)));
+  // for (var i=0;i<e.length;i++)
+  //   console.log(new ItemEnchantment().add(se[i]).toString(true));
+  var o = addEnchantmentsFromList(item, se, 30);
+  //console.log(o);
+  // for (var i=0;i<o.val.length;i++)
+  //   o.val[i]=o.val[i].toString();
+  console.log(o);
 }
 main();
 
