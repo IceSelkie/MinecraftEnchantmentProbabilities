@@ -2,91 +2,145 @@
 /**
  * Primes lib
  * @author Stanley S
- * @version 1.2
+ * @version 1.3
  * @date 2020-07-27
 **/
 bprimes = [2n,3n];
+
+/**
+ * Extends the list of primes by a few.
+**/
 function extendPrimes()
 {
-  var val = bprimes[bprimes.length-1];
-  var ct = 0;
-  while (ct<5)
-  {
-    // we start with 2 and 3, and all other primes are odd.
-    val+=2n;
+  // The list starts with 2 and 3, and all other primes are odd.
+  // The first candidate will be two more than the largest prime found.
+  var candidate = bprimes[bprimes.length-1]+2n;
+  var new_primes_found = 0;
 
-    var sq = bSqrt(val);
-    var p=true;
-    for (var i=0; bprimes[i]<=sq; i++)
-      if (val%bprimes[i]==0n)
+  while (new_primes_found<5)
+  {
+    // If the candidate has any factors, they will be less than its square root.
+    var cap = bSqrt(candidate);
+
+    // Assume prime until a factor is found
+    var candidate_has_factor=false;
+
+    // For each prime up to the cap, check if it is a factor of the candidate.
+    for (var i=0; bprimes[i]<=cap; i++)
+      if (candidate%bprimes[i]==0n)
       {
-        p=false;
+        // Factor found: this candidate is not prime, and we can end the loop.
+        candidate_has_factor=true;
         break;
       }
-    if (p)
+
+    // If no factors, then it is prime and can be added to the list of primes.
+    if (!candidate_has_factor)
     {
-      bprimes.push(BigInt(val));
-      ct++;
+      bprimes.push(BigInt(candidate));
+      new_primes_found++;
     }
+
+    // Move to the next candidate
+    candidate+=2n;
   }
+
+  // The list of primes has been extended by a few. We are done (for now).
+  return;
 }
-function bPrimeFactors(val)
+/**
+ * Factorizes a BigInt and returns an array with its factors as the elements.
+ * bProduct of the returned array gives the original value.
+**/
+function bPrimeFactors(value)
 {
-  if (typeof val !== 'bigint')
+  if (typeof value !== 'bigint')
     throw "bigint required for bfunctions"
-  if (val==0n||val==-1n)
-    return [val];
-  if (val==1n)
-    return [];
 
   var ret = [];
-  if (val<0)
+
+  // Base Case: -1, 0: Its factor is just itself.
+  if (value===0n||value===-1n)
+    return [value];
+
+  // 1 is ommitted from the factors list, thus factors is empty.
+  if (value===1n)
+    return [];
+
+  // -1 can be a factor
+  if (value<0)
   {
-    ret.push[-1n];
-    val*=-1n;
+    ret.push(-1n);
+    value*=-1n;
   }
-  var sq = bSqrt(val);
-  for (var i = 0; bprimes[i]<=sq; i++)
+
+  // Unless the value is prime, a factor will be found below its square root.
+  var cap = bSqrt(value);
+
+  // Check each prime number up to the cap:
+  // If it is a factor, add it to the list and divide value by it.
+  // We then have a smaller value to work with and know all primes
+  // be low the one we just tested are not factors.
+  for (var i=0; bprimes[i]<=cap; i++)
   {
-    if (bprimes.length<i+5)
+    // Get more prime numbers if we need them
+    if (bprimes.length<i+2) // +1 is current, +2 covers next, which is checked in the loop against cap.
       extendPrimes();
-    while (val%bprimes[i]==0n)
+
+    // Check if this multiple of its factors.
+    while (value%bprimes[i]===0n)
     {
       ret.push(bprimes[i]);
-      val/=bprimes[i];
-      sq = bSqrt(val);
+      value/=bprimes[i];
     }
+
+    // Recalculate the cap, since our value has been (hopefully greatly) reduced.
+    cap = bSqrt(value);
   }
-  if (val!=1n)
-    ret.push(val);
+
+  // If there are no factors below its sqrt, then the final value must itself be prime.
+  if (value!==1n)
+    ret.push(value);
+
+  // Return the array of factors.
   return ret;
 }
+/**
+ * two lists of factors, and find what factors they share. (Effectively gcd)
+**/
 function bFactorsIntersect(fact,other)
 {
   var i=0;
   var j=0;
   var ret = [];
+  // While they both still have factors
   while (i<fact.length && j<other.length)
   {
-  if (fact[i]==other[j])
-  {
-    ret.push(fact[i]);
-    i++; j++;
-  }
-  else
-      if (fact[i]<other[j])
-      i++
+    if (fact[i]==other[j])
+    {
+      ret.push(fact[i]);
+      i++; j++;
+    }
     else
-      j++;
+      if (fact[i]<other[j])
+        i++
+      else
+        j++;
   }
   return ret;
 }
+/**
+ * two bigints, and find what factors they share. (Effectively gcd)
+**/
 function bCofactors(val1, val2)
 {
+  // if we are just dealing with lists, bFactorsIntersect already solves this problem.
   if (typeof val1 !== 'bigint' && typeof val2 !== 'bigint')
     bFactorsIntersect(val1,val2);
+  // make sure the list is first
   if (typeof val2 !== 'bigint')
     return bCofactors(val2,val1);
+  // if there is no list, make the first one into a list.
   if (typeof val1 === 'bigint')
     val1 = bPrimeFactors(val1);
   var ret=[];
@@ -100,6 +154,9 @@ function bCofactors(val1, val2)
   }
   return ret;
 }
+/**
+ * two bigints/factor lists, and find the factors that at least one of them has. (Effectively lcm)
+**/
 function bAllFactors(val1,val2)
 {
   if (val1 instanceof Q) val1=val1.d;
@@ -121,11 +178,17 @@ function bAllFactors(val1,val2)
   while (j<val2.length) ret.push(val2[j++]);
   return ret;
 }
+/**
+ * Multiplies a list of numbers together. Thats it. Really.
+**/
 function bProduct(facts)
 {
   var ret = 1n;
+
+  // Multiply the return value by each value in the list
   for (var i=0; i<facts.length; i++)
     ret*=facts[i];
+
   return ret;
 }
 function bReduce(vals)
@@ -1082,21 +1145,6 @@ const ENCHANTMENT_SETS = {
 **/
 function main()
 {
-  obj = {"wts":[{"val":5,"wt":3},{"val":6,"wt":4}],"total":7}
-  // simplifyProb(obj)
-  // console.log(primeFactors(1061340));
-  // console.log(primeFactors(77805));
-  // console.log(factorsIntersect(primeFactors(1061340),primeFactors(77805*7)));
-  // console.log(bPrimeFactors(1061340n));
-  // console.log(bPrimeFactors(77805n));
-  // console.log(bFactorsIntersect(bPrimeFactors(1061340n),bPrimeFactors(77805n*7n)));
-  
-  //console.log(bSqrt(7541066681n));
-  // console.log(bPrimeFactors(60727873587294018512000000n));
-  // console.log(bPrimeFactors(157800210763504777600000000n));
-  // console.log(bCofactors(60727873587294018512000000n,157800210763504777600000000n))
-
-
   // var p = new Pair(5,5n);
   // console.log(typeof p);
   // console.log(p);
@@ -1240,30 +1288,35 @@ function main()
  * Unit Tests
  * (because its not actually a bad idea)
 **/
+function unitTest()
+{
+  // bSqrt
+  runTest(testBSqrt);
+
+  // Primes Lib
+  runTest(testPrimes);
+  runTest(testFactorize);
+  runTest(testGCD);
+  runTest(testLCM);
+  runTest(testProduct);
+  // runTest(testBReduce);
+  // runTest(testQReduce);
+  testStatistics();
+}
+
+
+
 var tests=0;
 var tests_passed=0;
 var tests_failed=0;
 function runTest(test)
 {
   tests++;
-  var failed=false;
-  try { test(); }
-  catch (err) { tests_failed++; console.trace(); failed=true; }
-  if (!failed) tests_passed++;
+  try { test(); tests_passed++; console.log('passed: '+test.name); }
+  catch (err) { tests_failed++; console.log('!FAIL!: '+test.name); /*console.trace();*/ }
 }
-function unitTest()
+function testStatistics()
 {
-  // bSqrt
-  runTest(testBSqrt);
-  // Primes Lib
-  runTest(testPrimes);
-  // runTest(testFactorize);
-  // runTest(testFactorsIntersect);
-  // runTest(testCofactors);
-  // runTest(testAllfactors);
-  // runTest(testProduct);
-  // runTest(testQReduce);
-  // runTest(testBReduce);
   console.log(tests_passed+'/'+tests+' passed. '+tests_failed+' failed.');
 }
 function assert(bool, message)
@@ -1302,6 +1355,7 @@ function testBSqrt()
   assertEq(77n,bSqrt(78n*78n-1n),sqrt_message);
   assertEq(5137n,bSqrt(5137n*5137n),sqrt_message);
   assertEq(5137n,bSqrt(5138n*5138n-1n),sqrt_message);
+  assertEq(86839n,bSqrt(7541066681n),sqrt_message);
   assertEq(726145059471n,bSqrt(726145059472n*726145059472n-1n),sqrt_message);
   assertEq(726145059472n,bSqrt(726145059472n*726145059472n),sqrt_message);
   assertEq(726145059472n,bSqrt(726145059473n*726145059473n-1n),sqrt_message);
@@ -1309,53 +1363,134 @@ function testBSqrt()
 }
 function testPrimes()
 {
-
+  while (bprimes[bprimes.length-1]<6000n)
+    extendPrimes();
+  assertEq(5591n,bprimes[738-1],'The 738th prime number should be 5591.');
 }
+function testFactorize()
+{
+  var i;
+  var factors = bPrimeFactors(2663485784064000000000n);
+  assertEq(43,factors.length);
+  for (i=0;i<23;i++) assertEq(2n,factors[i]);
+  for (i=0;i<7;i++) assertEq(3n,factors[23+i]);
+  for (i=0;i<9;i++) assertEq(5n,factors[23+7+i]);
+  for (i=0;i<2;i++) assertEq(7n,factors[23+7+9+i]);
+  assertEq(37n,factors[41]);
+  assertEq(41n,factors[42]);
+
+  factors = bPrimeFactors(4846551n);
+  assertEq(3,factors.length);
+  assertEq(3n,factors[0]);
+  assertEq(389n,factors[1]);
+  assertEq(4153n,factors[2]);
+  
+  factors = bPrimeFactors(-2445676997n);
+  assertEq(4,factors.length);
+  assertEq(-1n,factors[0]);
+  assertEq(53n,factors[1]);
+  assertEq(6793n,factors[2]);
+  assertEq(6793n,factors[3]);
+
+  factors = bPrimeFactors(0n);
+  assertEq(1,factors.length);
+  assertEq(0n,factors[0]);
+
+  factors = bPrimeFactors(1n);
+  assertEq(0,factors.length);
+
+  factors = bPrimeFactors(-1n);
+  assertEq(1,factors.length);
+  assertEq(-1n,factors[0]);
+}
+function testGCD()
+{
+  var i;
+
+  var factors_c = bCofactors(1061340n,77805n*7n);
+  var factors_i = bFactorsIntersect(bPrimeFactors(1061340n),bPrimeFactors(77805n*7n));
+  assertEq(5,factors_c.length);   assertEq(5,factors_i.length);
+  assertEq(3n,factors_c[0]);      assertEq(3n,factors_i[0]);
+  assertEq(5n,factors_c[1]);      assertEq(5n,factors_i[1]);
+  assertEq(7n,factors_c[2]);      assertEq(7n,factors_i[2]);
+  assertEq(7n,factors_c[3]);      assertEq(7n,factors_i[3]);
+  assertEq(19n,factors_c[4]);     assertEq(19n,factors_i[4]);
+
+  factors_c = bCofactors(60727873587294018512000000n,157800210763504777600000000n);
+  factors_i = bFactorsIntersect(bPrimeFactors(60727873587294018512000000n),bPrimeFactors(157800210763504777600000000n));
+  assertEq(23,factors_c.length);             assertEq(23,factors_i.length);
+  for (i=0;i<10;i++) { assertEq(2n,factors_c[i]);           assertEq(2n,factors_i[i]);           }
+  for (i=0;i<6;i++)  { assertEq(5n,factors_c[10+i]);        assertEq(5n,factors_i[10+i]);        }
+  for (i=0;i<2;i++)  { assertEq(11n,factors_c[10+6+i]);     assertEq(11n,factors_i[10+6+i]);     }
+  for (i=0;i<2;i++)  { assertEq(17n,factors_c[10+6+2+i]);   assertEq(17n,factors_i[10+6+2+i]);   }
+  for (i=0;i<2;i++)  { assertEq(37n,factors_c[10+6+2+2+i]); assertEq(37n,factors_i[10+6+2+2+i]); }
+  assertEq(53n,factors_c[10+6+2+2+2+0]);     assertEq(53n,factors_i[10+6+2+2+2+0]);
+
+  assertEq(0,bCofactors(2n,3n).length);
+  assertEq(0,bFactorsIntersect([2n],[3n]).length);
+  assertEq(0,bCofactors(18655n,314721n).length);
+  assertEq(0,bFactorsIntersect(bPrimeFactors(18655n),bPrimeFactors(314721n)).length);
+
+  factors_c = bCofactors(4n*18655n,4n*314721n);
+  factors_i = bFactorsIntersect(bPrimeFactors(4n*18655n),bPrimeFactors(4n*314721n));
+  assertEq(2,factors_c.length); assertEq(2,factors_i.length);
+  assertEq(2n,factors_c[0]);    assertEq(2n,factors_i[0]);
+  assertEq(2n,factors_c[1]);    assertEq(2n,factors_i[1]);
+}
+function testLCM()
+{
+  var i;
+  var factors = bAllFactors(1061340n,77805n*7n)
+  assertEq(18n,bProduct(bAllFactors(6n,9n)));
+  assertEq(48n,bProduct(bAllFactors(12n,16n)));
+  assertEq(5321n,bProduct(bAllFactors(5321n,5321n)));
+  assertEq(236054965199503773052687830400000000n,bProduct(bAllFactors(60727873587294018512000000n,157800210763504777600000000n)));
+}
+function testProduct()
+{
+  var factors = [2n,2n,3n,7n,17n,19n,23n,23n,23n];
+  assertEq(2n*2n*3n*7n*17n*19n*23n*23n*23n, bProduct(factors));
+  assertEq(330115044n, bProduct(factors));
+}
+// function testBReduce()
+// {
+//   //list/gcd;
+// }
+// function testQReduce()
+// {
+//   //list*lcm(d)*gcd
+// }
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// technically the only code in this file that runs
+// the rest is just function definitions (that get called)
 unitTest();
 //main();
 
 
 
-/**
- * Mojang Enchantment Code for Java
-**/
-//    /**
-//     * Create a list of random EnchantmentData (enchantments) that can be added together to the ItemStack, the 3rd
-//     * parameter is the total enchantability level.
-//     */
-//    public static List<EnchantmentData> buildEnchantmentList(Random randomIn, ItemStack itemStackIn, int level, boolean allowTreasure) {
-//       List<EnchantmentData> list = Lists.newArrayList();
-//       Item item = itemStackIn.getItem();
-//       int i = itemStackIn.getItemEnchantability();
-//       if (i <= 0) {
-//          return list;
-//       } else {
-//          level = level + 1 + randomIn.nextInt(i / 4 + 1) + randomIn.nextInt(i / 4 + 1);
-//          float f = (randomIn.nextFloat() + randomIn.nextFloat() - 1.0F) * 0.15F;
-//          level = MathHelper.clamp(Math.round((float)level + (float)level * f), 1, Integer.MAX_VALUE);
-//          List<EnchantmentData> list1 = getEnchantmentDatas(level, itemStackIn, allowTreasure);
-//          if (!list1.isEmpty()) {
-//             list.add(WeightedRandom.getRandomItem(randomIn, list1));
-//
-//             while(randomIn.nextInt(50) <= level) {
-//                removeIncompatible(list1, Util.func_223378_a(list));
-//                if (list1.isEmpty()) {
-//                   break;
-//                }
-//
-//                list.add(WeightedRandom.getRandomItem(randomIn, list1));
-//                level /= 2;
-//             }
-//          }
-//
-//          return list;
-//       }
-//    }
+
+
+
 
 
 
