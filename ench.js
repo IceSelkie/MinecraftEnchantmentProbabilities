@@ -48,6 +48,7 @@ function extendPrimes()
   // The list of primes has been extended by a few. We are done (for now).
   return;
 }
+
 /**
  * Factorizes a BigInt and returns an array with its factors as the elements.
  * bProduct of the returned array gives the original value.
@@ -105,122 +106,179 @@ function bPrimeFactors(value)
   // Return the array of factors.
   return ret;
 }
+
 /**
- * two lists of factors, and find what factors they share. (Effectively gcd)
+ * GCD of two lists of factors.
+ * Takes two ordered lists of numbers, and find what values they share.
 **/
 function bFactorsIntersect(fact,other)
 {
-  var i=0;
-  var j=0;
+  var i=0, j=0;
   var ret = [];
-  // While they both still have factors
+  
+  // While neither list is empty
   while (i<fact.length && j<other.length)
   {
+    // If they share a value, add it to the return list, and step both forward.
     if (fact[i]==other[j])
     {
       ret.push(fact[i]);
       i++; j++;
     }
+    // otherwise, step forward with which ever is smaller.
     else
+    {
       if (fact[i]<other[j])
-        i++
+        i++;
       else
         j++;
+    }
   }
+
+  // Return the list of shared factors.
   return ret;
 }
+
 /**
- * two bigints, and find what factors they share. (Effectively gcd)
+ * GCD of two numbers, or a list of factors and a number.
+ * Takes two bigints, and finds what factors they share.
 **/
 function bCofactors(val1, val2)
 {
-  // if we are just dealing with lists, bFactorsIntersect already solves this problem.
+  // two lists? -> bFactorsIntersect (already solves GCD)
   if (typeof val1 !== 'bigint' && typeof val2 !== 'bigint')
     bFactorsIntersect(val1,val2);
-  // make sure the list is first
+
+  // one list? -> val1 is list.
   if (typeof val2 !== 'bigint')
     return bCofactors(val2,val1);
-  // if there is no list, make the first one into a list.
+
+  // make val1 a list if it isn't
   if (typeof val1 === 'bigint')
     val1 = bPrimeFactors(val1);
+
   var ret=[];
+
+  // For each value in list of factors,
   for (var i=0; i<val1.length; i++)
   {
+    // If the number is divisible, it is factor of both.
     if (val2%val1[i]==0)
     {
-      val2/=val1[i];
+      // Add to return and remove that factor from val2.
       ret.push(val1[i]);
+      val2/=val1[i];
     }
   }
+
+  // Return the list of shared factors.
   return ret;
 }
+
 /**
- * two bigints/factor lists, and find the factors that at least one of them has. (Effectively lcm)
+ * LCM of two numbers or list of factors.
+ * two values/lists, and find the factors that at least one of them has.
 **/
 function bAllFactors(val1,val2)
 {
+  // If we are working with Quotients, we are taking the LCM of the denominator...
   if (val1 instanceof Q) val1=val1.d;
   if (val2 instanceof Q) val2=val2.d;
+  // We need lists for both, so convert to list if it isn't already...
   if (typeof val1 == 'bigint') val1=bPrimeFactors(val1);
   if (typeof val2 == 'bigint') val2=bPrimeFactors(val2);
+
   var ret=[];
-  var i=0;var j=0;
+  var i=0, j=0;
+
+  // While both lists have more elements
   while (i<val1.length&&j<val2.length)
   {
+    // Add the next smallest value to the return list and step forward on that list.
+    // If they are the same value, add one of them, and step forward on both.
     if (val1[i]==val2[j])
-      {ret.push(val1[i]);i++;j++;}
+      { ret.push(val1[i]); i++; j++; }
     else if (val1[i]<val2[j])
       ret.push(val1[i++]);
     else
       ret.push(val2[j++]);
   }
+
+  // Add the rest of the values from whichever list has more elements.
   while (i<val1.length) ret.push(val1[i++]);
   while (j<val2.length) ret.push(val2[j++]);
+
+  // Return the list of all factors.
   return ret;
 }
+
 /**
  * Multiplies a list of numbers together. Thats it. Really.
 **/
-function bProduct(facts)
+function bProduct(factors)
 {
-  var ret = 1n;
+  var product = 1n;
 
-  // Multiply the return value by each value in the list
-  for (var i=0; i<facts.length; i++)
-    ret*=facts[i];
+  for (var i=0; i<factors.length; i++)
+    product *= factors[i];
 
-  return ret;
+  return product;
 }
+
+/**
+ * Takes a list of values and divides each value by the list's gcd.
+ * The resulting list is coprime.
+**/
 function bReduce(vals)
 {
+  // Empty list -> done
   if (vals.length==0) return vals;
-  if (vals.length==1) {vals[0]=1n; return vals;}
+  // 1 element -> gcd is itself, thus return 1.
+  if (vals.length==1) if (vals[0]===0n) return vals; else {vals[0]=1n; return vals;}
+
+  // Find the GCD of the entire list
   var gcd = bPrimeFactors(vals[0]);
   for (var i=1;i<vals.length;i++)
     gcd=bCofactors(gcd,vals[i])
   gcd=bProduct(gcd);
+
+  // Divide each element in the list by the GCD
   for (var i=0;i<vals.length;i++)
   {
     if (vals[i]%gcd!=0n) throw 'simplify error: '+vals[i]+' ('+gcd+')';
     vals[i]/=gcd;
   }
+
+  // Return the now coprime list.
   return vals;
 }
+
+/**
+ * Takes a list of quotients and scales them up to be integers, then divides them by the gcd.
+ * The resulting list of integers is coprime.
+**/
 function qReduce(vals)
 {
-  if (vals.length==0) return [];
-  if (vals.length==1) if (vals[0].n==0n) return [0n]; else return [1n];
+  // Empty list -> done
+  if (vals.length==0) return vals;
+  // 1 element -> gcd is itself, thus return 1.
+  if (vals.length==1) if (vals[0].n==0n) {vals[0]=0n; return vals;} else {vals[0]=1n; return vals;}
 
+  // Find the LCM of the denominators of the entire list
   var lcm = bPrimeFactors(vals[0].d);
   for (var i=1;i<vals.length;i++)
     lcm=bAllFactors(lcm,vals[i].d);
   lcm=bProduct(lcm);
+
+  // Multiply each element by the lcm and convert to an integer
   ret=[];
   for (var i=0;i<vals.length;i++)
   {
     if (lcm%vals[i].d!=0n) throw 'simplify error: '+lcm+' ('+vals[i].d+')';
     ret[i]=vals[i].n*(lcm/vals[i].d);
   }
+
+  // Now can reduce to coprime via bReduce (DRYS).
   return bReduce(ret);
 }
 
