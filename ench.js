@@ -1357,8 +1357,8 @@ function unitTest()
   runTest(testGCD);
   runTest(testLCM);
   runTest(testProduct);
-  // runTest(testBReduce);
-  // runTest(testQReduce);
+  runTest(testBReduce);
+  runTest(testQReduce);
   testStatistics();
 }
 
@@ -1370,8 +1370,8 @@ var tests_failed=0;
 function runTest(test)
 {
   tests++;
-  try { test(); tests_passed++; console.log('passed: '+test.name); }
-  catch (err) { tests_failed++; console.log('!FAIL!: '+test.name); /*console.trace();*/ }
+  /**/try {/**/ test(); tests_passed++; console.log('passed: '+test.name); /**/}/**/
+  /**/catch (err) { tests_failed++; console.log('!FAIL!: '+test.name); /*console.trace();*/ /**/}/**/
 }
 function testStatistics()
 {
@@ -1392,6 +1392,25 @@ function assertEq(expected, actual, message)
       throw "Assertion failed. Expected '"+expected+"' but was actually '"+actual+"'. Run with '--trace-uncaught' to show stack trace.";
     else
       throw "Assertion failed. Expected '"+expected+"' but was actually '"+actual+"'. "+message;
+}
+function assertListEq(expected, actual, message)
+{
+  var fail=false;
+  if (expected.length!=actual.length)
+    fail=true;
+  for (var i=0;!fail&&i<expected.length;i++)
+    if (!(expected[i]===actual[i]))
+      fail=true;
+
+  if (fail)
+    if (message==undefined)
+      throw "Assertion failed. Expected '"+expected+"' but was actually '"+actual+"'. Run with '--trace-uncaught' to show stack trace.";
+    else
+      throw "Assertion failed. Expected '"+expected+"' but was actually '"+actual+"'. "+message;
+}
+function fail()
+{
+  assert(false);
 }
 
 
@@ -1510,14 +1529,32 @@ function testProduct()
   assertEq(2n*2n*3n*7n*17n*19n*23n*23n*23n, bProduct(factors));
   assertEq(330115044n, bProduct(factors));
 }
-// function testBReduce()
-// {
-//   //list/gcd;
-// }
-// function testQReduce()
-// {
-//   //list*lcm(d)*gcd
-// }
+function testBReduce()
+{
+  assertListEq([1n,2n,4n],bReduce([7n, 14n, 28n]));
+  assertListEq([],bReduce([]));
+  assertListEq([0n],bReduce([0n]));
+  assertListEq([1n],bReduce([17n]));
+  assertListEq([1n,1n],bReduce([17n,17n]));
+  assertListEq([3n,5n],bReduce([3n,5n]));
+  assertListEq([5n,35n,7n],bReduce([5n,35n,7n]));
+  assertListEq([35n,5n,7n],bReduce([35n,5n,7n]));
+  assertListEq([5n,7n,9n],bReduce([5n,7n,9n]));
+  assertListEq([15n,35n,21n],bReduce([15n,35n,21n]));
+  assertListEq([15n,35n,21n],bReduce([15n*381n,35n*381n,21n*381n]));
+
+  assertListEq([41n,1n,99n,42n,93n,2n,10n,10n,18n,32n],
+    bReduce([2419n,59n,5841n,2478n,5487n,118n,590n,590n,1062n,1888n]));
+}
+function testQReduce()
+{
+  assertListEq([],qReduce([]));
+  assertListEq([0n],qReduce([q(0n)]));
+  assertListEq([1n],qReduce([q(17n)]));
+  assertListEq([7n,5n],qReduce([q(1,5),q(1,7)]));
+  assertListEq([371280n,26208n,9360n,116480n,36855n,8190n,16380n,6300n,496860n],
+    qReduce([q(17,3),q(2,5),q(1,7),q(16,9),q(9,16),q(1,8),q(1,4),q(5,52),q(91,12)]));
+}
 
 
 
