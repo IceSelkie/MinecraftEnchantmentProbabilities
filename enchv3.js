@@ -1,3 +1,4 @@
+const crypto=require("crypto");
 const TESTING = true;
 gcd=(a,b)=>{[a,b]=[abs(a),abs(b)];while(b){if(b>a)[a,b]=[b,a];else[a,b]=[b,a%b]}return a};
 dispPs=(distrib)=>console.log(simp(distrib.map(a=>a[1]).reduce(add)),distrib.map(([v,p])=>[v+"",float(p),p[0]+"/"+p[1]]));
@@ -61,7 +62,7 @@ enchantabilityToFinalLevel = probabilities =function(lvl) {
   return ret;
 };
 
-dispPs(enchantabilityToFinalLevel(29n))
+// dispPs(enchantabilityToFinalLevel(29n))
 
 
 
@@ -78,7 +79,7 @@ eltk=(e,l)=>{
 }
 toFinalLevel=(e,l)=>recomb(eltk(e,l).map(a=>probabilities(a[0]).map(b=>[b[0],p(b[1],a[1])])).flat(),true)
 
-dispPs(toFinalLevel(10,30));
+// dispPs(toFinalLevel(10,30));
 
 
 
@@ -98,34 +99,128 @@ function numEnchs(finalLevel, maxNum) {
   return ret.map((a,i)=>[i+1,simp(a)]);
 }
 
-dispPs(numEnchs(33,9))
+// dispPs(numEnchs(33,9))
+
+
+
+
+// Generates all combinations of `qty` indecies `size` items. Will return an array with $size c qty$ entries.
+choose=(size,qty,off=0,ret=[])=>ret.length==qty?[ret]:off==size?[]:[...choose(size,qty,off+1,ret.concat(off)),...choose(size,qty,off+1,ret)];
+
+// final=(ws,x)=>prod(ws)/(x+sum(ws))*harmonic(ws,x)
+// harmonic=(ws,x)=>sum(permutationsOf(ws).map(permutation=>1/helper(permutation,x)));
+// helper=(ws,x)=>{let ret=1,run=x;for(let i=0;i<ws.length-1;i++)ret*=(run+=ws[i]);return ret};
+// So=(ws,x)=>{let key=JSON.stringify([x,ws]);if(sco[key])return sco[key];ps.push(key);let ret=ws.length==1?1/(x+ws[0]):sum(ws.map((wi,i)=>So(ws.filter((w,j)=>i!=j),x+wi)/(x+wi)));return sco[key]=ret;}
+sc={};S=(ws,x)=>{if(ws.length==1)return [ws[0],x+ws[0]];let key=x+"|"+ws.join();return sc[key]??(sc[key]=simp((ws.map((wi,i)=>p([wi,x+wi],S(ws.filter((w,j)=>i!=j),x+wi)))).reduce(add)))}
+SH=(ws,x)=>x==0?q(1n):ws.length==0||sum(ws)==0?q(0n):S(ws.sort(),x);
+takeQty=(weights,quantity)=>choose(weights.length,quantity).map(c=>SH(weights.filter((_,i)=>c.includes(i)),sum(weights.filter((_,i)=>!c.includes(i)))))
+
+// console.log(crypto.Hash("sha256").update(takeQty(range(1,9).map(BigInt),3).flat().join()).digest("hex"));
+// console.log("432d6f13c29894ccec1d5a190933a59539477f602ec5b7b5100f8adb4be08480");
+// console.log(simp(takeQty([1n,2n,3n,5n,10n],3).reduce(add)),takeQty([1n,2n,3n,5n,10n],3).map(float));
 
 
 
 
 
+// Take buckets with multiple enchantes (eg silk and fortune are mutually exclusive)
+// and split these properties by the chance of each occuring.
+bifurcateBuckets=(buckets)=>{
+  let ret=[[[],[1n,1n]]];
+  buckets.forEach(bucket=>
+    ret=bucket.map(
+      ([ench,enchWt],i)=>
+      ret.map(
+        ([runningEnchs,runningProb])=>{
+          let enchs = [...runningEnchs,ench];
+          let prob = p(runningProb,[enchWt??1n,sum(bucket,([ench,enchWt])=>enchWt)])
+          return [enchs,prob];
+        }
+      )
+    )
+    .flat()
+  );
+  return ret
+};
+
+// dispPs(bifurcateBuckets([[["a",1n]],[["b",3n],["c",2n]],[["d",7n]]]))
 
 
-// Directly Taken:
-permutationsCalc=n=>n<=1?[[0]]:range(n).map(i=>permutations(n-1).map(p=>[...p.splice(0,i),n-1,...p])).flat().sort();
-permutationsCache = {};
-permutations=n=>n<=1?[[0]]:JSON.parse(permutationsCache[n]??(permutationsCache[n]=JSON.stringify(permutationsCalc(n))));
-permute=(arr,perm)=>arr.map((a,i)=>arr[perm[i]]);
-permutationsOf=(arr)=>permutations(arr.length).map(p=>permute(arr,p));
-split=(arr,leftInds)=>{let r1=[],r2=[];arr.forEach((a,i)=>{if(leftInds.includes(i))r1.push(a);else r2.push(a);});return [r1,r2]};
-function choose(size, qty) {
-  let ret = [];
-  let stack = [[0, []]];
-  while (stack.length) {
-    let [start, current] = stack.pop();
-    if (current.length == qty)
-      ret.push(current);
-    else
-      for (let i = size - qty + current.length; i >= start; i--)
-        stack.push([i + 1, current.concat(i)]);
-  }
-  return ret;
+
+
+
+// Take a string describing an item and qty of enchants
+// to output items and probabilities.
+processLine=str=>{
+  [qty,s]=str.split(";");
+  s=s.split(" ").map(a=>a.split("|"));
+  return transpose(
+    [
+      choose(s.length,qty).map(c=>s.filter((_,i)=>c.includes(i))),
+      takeQty(s.map(b=>sum(b.map(a=>{let[name,lvl,wt]=a.split(",");return BigInt(wt)}))),Number(qty))
+    ]
+  ).map(
+    ([bs,p1])=>
+    bifurcateBuckets(bs.map(b=>b.map(e=>{
+      [name,lvl,wt]=e.split(",");
+      return[name+lvl,BigInt(wt)]
+    })))
+    .map(([o,p2])=>[o,p(p1,p2)])
+  ).flat().map(([ns,prob])=>[ns.join(","),prob])
 }
+
+// dispPs(processLine("2;E,4,10 Fo,3,2|St,1,1 U,3,5"))
+
+
+
+
+
+getBuckets=(item,lvl,treasure)=>{
+  if (!item) return Object.keys(items);
+  if (!ia(item))
+    item = items[item];
+  if (!item) return;
+  let enchObs = item.map(a=>a.map(b=>enchs.find(c=>c[4]==b)));
+  // enforce treasure
+  enchObs = enchObs.map(a=>a.filter(a=>treasure||!a[3])).filter(a=>a.length);
+  // enforce level
+  enchObs = enchObs.map(a=>a.filter(a=>lvl<=a[5] && lvl>=a[6])).filter(a=>a.length);
+  // Name Lvl Weight
+  return enchObs.map(a=>a.map(b=>b[4]+","+(0+sum(b.slice(6),a=>a<=lvl))+","+b[2]).sort().join("|")).sort().join(" ")
+}
+fullProbabilities=(level=30,treasure=false,enchantability=10,itemType="tool")=>{
+  let finalLevels = toFinalLevel(enchantability,level);
+  let withBuckets = finalLevels.map(a=>[a[0],a[1],getBuckets(itemType,a[0],treasure)]);
+  let bucketsWithEnchQtys = withBuckets.map(([finalLevel,bucketProb,bucket])=>
+      numEnchs(finalLevel, bucket.split(" ").length)
+      .map(([enchQty,qtyProb],i)=>[enchQty+";"+bucket,p(bucketProb,qtyProb)])
+    )
+  bucketsWithEnchQtys = recomb(bucketsWithEnchQtys.flat());
+  // Should be ["2;E,4,10 Fo,3,2|St,1,1 U,3,5", 123/456]
+  // Meaning: pick 2 from: EffIV, (FortIII or Silk), and UnbIII.
+
+  let toItems = recomb(
+    bucketsWithEnchQtys
+    .map(([str,bucketProb])=>
+      processLine(str)
+      .map(([item,itemProb])=>[item,p(bucketProb,itemProb)]))
+    .flat(),false
+  );
+  return toItems;
+}
+
+// time(()=>fullProbabilities(50,true,10)).forEach(a=>console.log(a.join("  ")));
+dispPs(fullProbabilities(50,false,10))
+// TODO: why does this output negatives?
+
+
+// // Directly Taken:
+// permutationsCalc=n=>n<=1?[[0]]:range(n).map(i=>permutations(n-1).map(p=>[...p.splice(0,i),n-1,...p])).flat().sort();
+// permutationsCache = {};
+// permutations=n=>n<=1?[[0]]:JSON.parse(permutationsCache[n]??(permutationsCache[n]=JSON.stringify(permutationsCalc(n))));
+// permute=(arr,perm)=>arr.map((a,i)=>arr[perm[i]]);
+// permutationsOf=(arr)=>permutations(arr.length).map(p=>permute(arr,p));
+// split=(arr,leftInds)=>{let r1=[],r2=[];arr.forEach((a,i)=>{if(leftInds.includes(i))r1.push(a);else r2.push(a);});return [r1,r2]};
 
 
 
