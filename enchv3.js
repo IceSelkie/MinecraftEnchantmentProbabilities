@@ -91,10 +91,21 @@ function numEnchs(finalLevel, maxNum) {
   for (let i = 1; i<maxNum; i++) {
     let noom = finalLevel+1n;
     let denom = 50n;
+    if (noom >= denom)
+      noom = denom = 1n;
     ret.push([ret[i-1][0]*noom, ret[i-1][1]*denom]);
     ret[i-1][0] = ret[i-1][0]*(denom-noom);
     ret[i-1][1] = ret[i-1][1]*denom;
     finalLevel = finalLevel / 2n;
+  }
+  if (TESTING) {
+    let total = simp(ret.reduce(add));
+    assert(eq(q(1n),total),true,"numEnchs should sum to one, but instead gave "+total[0]+"/"+total[1]);
+    for (let i=0; i<ret.length; i++) {
+      let a=ret[i];
+      assert(a[0]*a[1] >= 0n,true,`numEnchs probability for qty=${i+1} should be nonnegative, but instead gave ${a[0]}/${a[1]}`);
+      assert(a[0] <= a[1],true,`numEnchs probability for qty=${i+1} should be <=1, but instead gave ${a[0]}/${a[1]}`);
+    }
   }
   return ret.map((a,i)=>[i+1,simp(a)]);
 }
@@ -210,17 +221,13 @@ fullProbabilities=(level=30,treasure=false,enchantability=10,itemType="tool")=>{
 }
 
 // time(()=>fullProbabilities(50,true,10)).forEach(a=>console.log(a.join("  ")));
-dispPs(fullProbabilities(50,false,10))
-// TODO: why does this output negatives?
+dispPs(fullProbabilities(30,false,10))
 
+// // Generate Input for SVG Graph:
+// groupBy=d=>{let ret=Object.fromEntries([...new Set(d.map(a=>a[0]))].map(a=>[a,[]]));d.forEach(a=>ret[a[0]].push(a.slice(1)));return Object.entries(ret);}
+// console.log(JSON.stringify([0,10,20,30].map(t=>[t,groupBy(recomb(fullProbabilities(t,false,10).map(a=>a[0].split(",").map(b=>[b,a[1]])).flat()).map(a=>[a[0].slice(0,-1),Number(a[0].slice(-1)),float(a[1])]))])));
 
-// // Directly Taken:
-// permutationsCalc=n=>n<=1?[[0]]:range(n).map(i=>permutations(n-1).map(p=>[...p.splice(0,i),n-1,...p])).flat().sort();
-// permutationsCache = {};
-// permutations=n=>n<=1?[[0]]:JSON.parse(permutationsCache[n]??(permutationsCache[n]=JSON.stringify(permutationsCalc(n))));
-// permute=(arr,perm)=>arr.map((a,i)=>arr[perm[i]]);
-// permutationsOf=(arr)=>permutations(arr.length).map(p=>permute(arr,p));
-// split=(arr,leftInds)=>{let r1=[],r2=[];arr.forEach((a,i)=>{if(leftInds.includes(i))r1.push(a);else r2.push(a);});return [r1,r2]};
+console.log("Final Cache size:",Object.entries(sc).length);
 
 
 
@@ -232,54 +239,4 @@ dispPs(fullProbabilities(50,false,10))
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// fullProbabilities -> toFinalLevel, getBuckets, numEnchs, processLine, recomb
-// toFinalLevel -> probabilities, eltk, recomb
-// getBuckets -> items
-// processLine -> transpose, pTake, bifurcateBuckets
-// pTake -> choose, pTakeAll -> pTakeOne, permutationsOf -> permute, permutations -> permutationsCalc, permutationsCache
-
-// items
-
-// processLine=str=>{[q,s]=str.split(";");s=s.split(" ").map(a=>a.split("|"));return transpose([choose(s.length,q).map(c=>split(s,c)[0]),pTake(s.map(b=>sum(b.map(a=>Number(a.split(",")[2])))),Number(q))]).map(([bs,p1])=>bifurcateBuckets(bs.map(b=>b.map(e=>{[name,lvl,wt]=e.split(",");return[name+lvl,Number(wt)]}))).map(([o,p2])=>[o,p1*p2])).flat().map(([ns,p])=>[ns.join(","),p])}
-// fullProbabilities=(level=30,treasure=false,enchantability=10,itemType="tool")=>{
-//   let enchDat = recomb(toFinalLevel(enchantability,level).map(a=>[a[0],a[1],getBuckets(itemType,a[0],treasure)]).map(a=>numEnchs(a[0],a[2].split(" ").length).map((b,i)=>[(i+1)+";"+a[2],a[1]*b])).flat(),false);
-//   return recomb(enchDat.map(([str,p1])=>processLine(str).map(([ench,p2])=>[ench,p1*p2])).flat(),false)//.map(([n,p])=>[n.replaceAll(/[a-z,]/g,"").split(/(..)/).sort().join(""),p]).sort();
-// }
-// getBuckets=(item,lvl,treasure)=>{
-//   if (!item) return Object.keys(items);
-//   if (!ia(item))
-//     item = items[item];
-//   if (!item) return;
-//   let enchObs = item.map(a=>a.map(b=>enchs.find(c=>c[4]==b)));
-//   // enforce treasure
-//   enchObs = enchObs.map(a=>a.filter(a=>treasure||!a[3])).filter(a=>a.length);
-//   // enforce level
-//   enchObs = enchObs.map(a=>a.filter(a=>lvl<=a[5] && lvl>=a[6])).filter(a=>a.length);
-//   // Name Lvl Weight
-//   return enchObs.map(a=>a.map(b=>b[4]+","+(0+sum(b.slice(6),a=>a<=lvl))+","+b[2]).sort().join("|")).sort().join(" ")
-// }
-// bifurcateBuckets=(bs)=>{let ret=[[[],1]];bs.forEach(b=>ret=b.map(([e,pn],i)=>ret.map(([r,pc])=>[[...r,e],pc*(pn??1)/sum(b,a=>a[1])])).flat());return ret};JSON.stringify(bifurcateBuckets([[["a",1]],[["b",3],["c",2]],[["d",7]]]))
-
-
-// pTakeOne=(ws,x)=>{let ret=1,run=x;for(let i=0;i<ws.length-1;i++)ret*=(run+=ws[i]);return 1/ret};
-// pTakeAll=(ws,x)=>prod(ws)/(sum(ws)+x)*sum(permutationsOf(ws).map(wsp=>pTakeOne(wsp,x)));
-// pTake=(ws,qty)=>choose(ws.length,qty).map(c=>{[y,n]=split(ws,c);return pTakeAll(y,sum(n))})
 

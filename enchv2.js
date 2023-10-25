@@ -22,6 +22,8 @@ function numEnchs(finalLevel, maxNum) {
   for (let i = 1; i<maxNum; i++) {
     let noom = finalLevel+1;
     let denom = 50;
+    if (noom >= denom)
+      noom = denom = 1;
     ret.push([ret[i-1][0]*noom, ret[i-1][1]*denom]);
     ret[i-1][0] = ret[i-1][0]*(denom-noom);
     ret[i-1][1] = ret[i-1][1]*denom;
@@ -32,6 +34,9 @@ function numEnchs(finalLevel, maxNum) {
 }
 
 simp=q=>{let f=gcd(...q);return q.map(a=>a/f)}
+
+
+dispPs=(distrib)=>console.log(sum(distrib,a=>Number(a[1])),distrib.map(([v,p])=>[v+"",Number(p)]).filter(a=>a[1]));
 
 
 
@@ -68,6 +73,9 @@ const probabilities = function(lvl) {
   return ret;
 };
 eltk=(e,l)=>{let ret=[];let t=Math.floor(e/4);for(let i=0;i<=2*t;i++)ret.push([l+1+i,1+(i<t?i:2*t-i)]);t=sum(ret.map(a=>a[1]));return ret.map(a=>[a[0],a[1]/t])}
+
+
+// dispPs(probabilities(29))
 
 
 // Emperically verify
@@ -198,6 +206,10 @@ recomb=(arr,keyIsNum=true)=>{let ret={};arr.forEach(a=>ret[a[0]]=(ret[a[0]]??0)+
 toFinalLevel=(e,l)=>recomb(eltk(e,l).map(a=>probabilities(a[0]).map(b=>[b[0],b[1]*a[1]])).flat())
 
 
+
+dispPs(toFinalLevel(10,27));
+dispPs(numEnchs(33,9).map((a,i)=>[i+1,a]));
+
 //
 dist = {} ; (zlib.unzipSync(fs.readFileSync("pick_diam_30.nbt"))+"").split("\x0a").map(a=>a.split("\x09")).flat().filter((v,i,a)=>i>0&&a[i-1].includes("Enchantments")).map(a=>a.split(/\x00[\x02\x00]\x00/).filter(a=>a&&!a.includes("Slot")&&!a.includes("DataVersion")).map(a=>[a,a.indexOf("\x03lvl"),a.indexOf("\x02id")]).map(a=>[a[0].substring(a[2]+15),a[0].charCodeAt(a[1]+5)])).map(a=>JSON.stringify(Object.fromEntries(a.sort()))).forEach(a=>dist[a]?dist[a]++:dist[a]=1) ; dist=Object.entries(dist).sort((a,b)=>b[1]-a[1]) ; dist=Object.fromEntries([[['"total"',dist.map(a=>a[1]).reduce((c,n)=>c+n,0)]],dist].flat())
 dist2 = {}; Object.entries(dist).map(a=>[Object.entries(JSON.parse(a[0])).map(a=>a[0][0]).sort().join("").toUpperCase(),a[1]]).sort().forEach(a=>dist2[a[0]]=(dist2[a[0]]??0) + a[1]) ; dist2=Object.entries(dist2).filter(a=>a[0] && !a[0].startsWith("0")).sort()
@@ -315,6 +327,7 @@ pTake=(ws,qty)=>choose(ws.length,qty).map(c=>{[y,n]=split(ws,c);return pTakeAll(
 obs = recomb(dist2t.filter(a=>a[0].length==3).map(a=>[[...a[0].replaceAll("S","F")].sort().join(""),a[1]]).sort(),false).map(a=>a[1]);
 exp = pTake([10,3,2,5,1],3);
 assert(chisqGof(exp,obs)<16.919,undefined,"Ratios between ench wrong for 3 enchs");
+console.log(sum(pTake([1,2,3,5,10],3)),pTake([1,2,3,5,10],3));
 
 
 
@@ -360,6 +373,9 @@ time(()=>fs.writeFileSync("unb.csv","lvl,"+strings.join()+"\n"+time(()=>range(0,
 
 
 
+dispPs(fullProbabilities());
+
+time(()=>fullProbabilities(30,true,10,"sword")).forEach(a=>console.log(a.join("  ")));
 
 
 
