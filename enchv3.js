@@ -201,12 +201,15 @@ getBuckets=(item,lvl,treasure)=>{
 }
 fullProbabilities=(level=30,treasure=false,enchantability=10,itemType="tool")=>{
   let finalLevels = toFinalLevel(enchantability,level);
-  let withBuckets = finalLevels.map(a=>[a[0],a[1],getBuckets(itemType,a[0],treasure)]);
+  if (TESTING) console.log(finalLevels);
+  let withBuckets = finalLevels.map(([finalLevel,prob])=>[finalLevel,prob,getBuckets(itemType,finalLevel,treasure)]);
+  if (TESTING) console.log(withBuckets);
   let bucketsWithEnchQtys = withBuckets.map(([finalLevel,bucketProb,bucket])=>
       numEnchs(finalLevel, bucket.split(" ").length)
       .map(([enchQty,qtyProb],i)=>[enchQty+";"+bucket,p(bucketProb,qtyProb)])
     )
   bucketsWithEnchQtys = recomb(bucketsWithEnchQtys.flat());
+  if (TESTING) console.log(bucketsWithEnchQtys);
   // Should be ["2;E,4,10 Fo,3,2|St,1,1 U,3,5", 123/456]
   // Meaning: pick 2 from: EffIV, (FortIII or Silk), and UnbIII.
 
@@ -221,7 +224,8 @@ fullProbabilities=(level=30,treasure=false,enchantability=10,itemType="tool")=>{
 }
 
 // time(()=>fullProbabilities(50,true,10)).forEach(a=>console.log(a.join("  ")));
-dispPs(fullProbabilities(30,false,10))
+dispPs(fullProbabilities(30,false,10,"sword"))
+// fullProbabilities(30,false,10,"sword")
 
 // // Generate Input for SVG Graph:
 // groupBy=d=>{let ret=Object.fromEntries([...new Set(d.map(a=>a[0]))].map(a=>[a,[]]));d.forEach(a=>ret[a[0]].push(a.slice(1)));return Object.entries(ret);}
