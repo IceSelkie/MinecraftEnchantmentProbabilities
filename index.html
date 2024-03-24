@@ -179,21 +179,34 @@ updateVariableBox();
   }
 
   const functionsToDraw = {"f(x)":f,"g(x)":g};
-  // Create a group for the legend
   const legendData = [
     {name: 'f(x)', color: 'steelblue'},
     {name: 'g(x)', color: 'red'}
   ];
 
+
+
 function drawGraph(upperBound) {
-  // Generate data
-  const resolution = 0.01;
-  const data = d3.range(0, upperBound+resolution, resolution).map(function(x) {
+  const data = generateGraphData(0, upperBound, 0.01);
+
+  const svg = resetGraph();
+  const {x,y} = drawAxes(svg, data);
+  drawDataPaths(svg, data, {x,y});
+  addPointSelector(svg, data);
+  drawLegend(svg, data, {x,y});
+};
+
+
+
+function generateGraphData(start, end, resolution) {
+  const data = d3.range(start, end+resolution, resolution).map(function(x) {
     let ret = {x};
     Object.keys(functionsToDraw).forEach(k => ret[k]=functionsToDraw[k](x));
     return ret;
   });
-
+  return data;
+}
+function resetGraph() {
   // Set the dimensions and margins of the graph
   const margin = {top: 20, right: 20, bottom: 30, left: 50},
       width = 600 - margin.left - margin.right,
@@ -213,25 +226,28 @@ function drawGraph(upperBound) {
     .attr('width', width)
     .attr('height', height)
     .attr('fill', 'transparent');
-
-
-
-  // Add X axis
-  const x = d3.scaleLinear()
-    .domain([0, upperBound])
+  return svg;
+}
+function drawAxes(svg, data) {
+  const margin = {top: 20, right: 20, bottom: 30, left: 50}, width = 600 - margin.left - margin.right, height = 400 - margin.top - margin.bottom;
+  // Horizontal Axis
+  const x_scale = d3.scaleLinear()
+    .domain([0, data[data.length-1].x])
     .range([0, width]);
   svg.append("g")
     .attr("transform", `translate(0,${height})`)
-    .call(d3.axisBottom(x));
+    .call(d3.axisBottom(x_scale));
 
-  // Add Y axis
-  const y = d3.scaleLinear()
+  // Vertical Axis
+  const y_scale = d3.scaleLinear()
     .domain([0, d3.max(data, d => Math.max(...Object.keys(functionsToDraw).map(k => d[k])))])
     .range([height, 0]);
   svg.append("g")
-    .call(d3.axisLeft(y));
+    .call(d3.axisLeft(y_scale));
 
-  // Draw the lines:
+  return {x:x_scale,y:y_scale};
+}
+function drawDataPaths(svg, data, {x, y}) {
   Object.entries(functionsToDraw).forEach(([name, func]) => {
     const color = legendData.find(a=>a.name==name).color;
 
@@ -254,10 +270,8 @@ function drawGraph(upperBound) {
         .attr('fill', color);
     });
   });
-
-
-
-
+}
+function drawLegend(svg, data) {
   const legend = svg.append('g')
     .attr('class', 'legend')
     .attr('transform', `translate(50, 20)`); // Adjust these values to position the legend
@@ -292,10 +306,8 @@ function drawGraph(upperBound) {
     .attr('height', legendBBox.height + getPadding("top") + getPadding("bottom"))
     .attr('x', legendBBox.x - getPadding("left"))  // Adjust the position to include the padding
     .attr('y', legendBBox.y - getPadding("top"));
-
-
-
-
+}
+function addPointSelector(svg, data, {x,y}) {
   // Highlight points on-click
   function findNearestPoint(mouseX) {
     const bisect = d3.bisector(d => d.x).left;
@@ -320,7 +332,7 @@ function drawGraph(upperBound) {
         .attr('r', 10)
         .attr('fill', 'red');
     });
-};
+}
 
 drawGraph(30);
 
