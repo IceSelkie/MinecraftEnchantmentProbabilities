@@ -47,38 +47,42 @@
 </head>
 <body>
 
+<h2>Select Item:</h2>
+<div id="item-select" style="display: flex; justify-content: space-between;">
+<div id="item-buttons" style="flex-grow: 1;">
 <div class="icon-row" id="row-1">
   <div class="icon-container" onclick="selectIcon(this, 'row-1')">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAHlBMVEUAAAD////Y2NjBwcGJZydoTh5ERERJNhUoHgsYGBhl7cYfAAAAAXRSTlMAQObYZgAAAEZJREFUeNpjwArS0hLANJuQsVopmJU509iDAQKKLCE0e4TRBDCjpGHyBIgAw+QJEAGGSRMgAgwTJ0AEGDihAlAtUEYHms0ANwkPY7rJmyQAAAAASUVORK5CYII=" alt="P" class="selected icon">
-    <div>P</div>
+    <div>Pickaxe</div>
   </div>
   <div class="icon-container" onclick="selectIcon(this, 'row-1')">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAi0lEQVQ4y2NgIAO4uLj8h2GyNMOAhITEf7I079u3j3QDqKb5xo0bNNKMLVRBfJAmomwGKc7OzoYbQpJmZEOmTZsGVgzSBGKT5GeYASAMcg3JAYbuFZI1e5qJ/s/wkwNrhAUq0YaANHemq//XkOMGawBphBlEMPRBGGQzTDMygBlE0M8k+xfdBnINAAA+k7meeyM0+AAAAABJRU5ErkJggg==" alt="S" class="icon">
-    <div>S</div>
+    <div>Sword</div>
   </div>
   <div class="icon-container" onclick="selectIcon(this, 'row-1')">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAXUlEQVQ4y2NgoCVwcXH5D8NkaQaBGzdugDFZhkhISPwH4YMHD8IN8TQT/Z/hJ/efZINAhoBwZ7o62FCSXQOyGeQKkCEkGwBzNsxLJGumyNkwm8nSPGozmcmWgd4AAIyXYZ4KnMPXAAAAAElFTkSuQmCC" alt="H" class="icon">
-    <div>H</div>
+    <div>Hoe</div>
   </div>
   <div class="icon-container" onclick="selectIcon(this, 'row-1')">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAeUlEQVQ4y2NgoAdwcXH5D8Jka4YBkg2BaT548OD/GzdukGYAsmYY9jQT/Z/hJ0ecIRISEmADQDaDNE+bNg1Ma8hxE+8KkCEgDLIZ2RCQGNGGwJwNshnmFaINAGnuTFeHOxvmIpJtJjnuKdaM7OwhYjMIgDSSrZkSAABx5YE7nrv/FQAAAABJRU5ErkJggg==" alt="A" class="icon">
-    <div>A</div>
+    <div>Axe</div>
   </div>
 </div>
 
 <div class="icon-row" id="row-2">
   <div class="icon-container" onclick="selectIcon(this, 'row-2')">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAFVBMVEXCnWK4lF+vj1WfhE2WdEF+YjdnUCyo+21oAAAAcElEQVR42g3CARXDIAwFwM/DAAk1kGQCVoKDDQeAA+JfQnvvwAV4XyD9CSk5hMS8yYUxR6wTG+WLjKQ3hFtvQgwX/RCbI9aIWHOjJMWrgonMzTqSuqt6RcwRZ+xALqkiJ0DJ7WZWWONO5o6zz3+ciAdixhUFVj2uwQAAAABJRU5ErkJggg==" alt="W" class="icon">
-    <div>W</div>
+    <div>Wooden</div>
   </div>
   <div class="icon-container" onclick="selectIcon(this, 'row-2')">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAElBMVEW1tbWmpqaIh4hubW1hYWFSUlLm8qFQAAAAcUlEQVR42gVAARGDMAz8MAMjh4CSLwIWIgDSIGAD/1p2iPk5pTfFOW3QLR3nGrrGQxSLTL1wp2TJ3PF6W/yaOjSV9eEB2y3a4omQPSerG4f6biMXkP0a8X2DMdpytQkuIWuY49CuziJmclhoIcsjUvgH41gVHD61kt4AAAAASUVORK5CYII=" alt="S" class="icon">
-    <div>S</div>
+    <div>Stone</div>
   </div>
   <div class="icon-container" onclick="selectIcon(this, 'row-2')">
     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAIVBMVEUAAAD////V//ah++hK7dks4NggxbUaqqcckZoRcnoUXlN/hNeyAAAAAXRSTlMAQObYZgAAAF1JREFUeNpjwApmzoTQnIJCE8CMiS5GWWABEWNltwVghpCQC4gx0dHFuKwKxHByNm4DM8SMTdpBjEku5eVpXUAGl3taWtkCECM8La0YxGBY4WKcBTaZa9WqBUg2AwByXRcdUQ3W3QAAAABJRU5ErkJggg==" alt="D" class="selected icon">
-    <div>D</div>
+    <div>Diamond</div>
   </div>
+</div>
 </div>
 
 <script>
@@ -101,9 +105,41 @@ function selectIcon(selectedElement, rowId) {
 
 
 
+<div id="parameters" style="border: 1px solid #ccc; padding: 10px; width: 200px; margin-right: 20px; display: inline-block; vertical-align: top;">
+  <h3>Parameters:</h3>
+  <p><strong>e:</strong> <span id="variable-e"></span></p>
+  <p><strong>k:</strong> <span id="variable-k"></span></p>
+  <p><strong>Treasure:</strong> <span id="variable-trsr"></span></p>
+  <p><strong>level:</strong> <span id="variable-lvl">[variable]</span></p>
+</div>
+</div>
+<script>
+function updateVariableBox(e, k, trsr, lvl) {
+  document.getElementById('variable-e').textContent = e;
+  document.getElementById('variable-k').textContent = k;
+  document.getElementById('variable-trsr').textContent = trsr;
+  document.getElementById('variable-lvl').textContent = lvl;
+}
+
+// Example of how you might call the function when variables change
+let e = 10;
+let k = 1;
+let trsr = false;
+let lvl = '[variable]'
+
+updateVariableBox(e, k, trsr, lvl);
+</script>
+
+
+
+
+
+<h2>Output & Graph:</h2>
+<br/>
 <label for="upper-bound-slider">Upper Bound: </label>
 <input type="range" id="upper-bound-slider" name="upperBound" min="10" max="50" value="30" step="0.001">
 <output id="upper-bound-value" for="upper-bound-slider">30</output>
+<br/>
 
 <svg width="600" height="400"></svg>
 
@@ -113,7 +149,7 @@ function selectIcon(selectedElement, rowId) {
     return x ** 0.75;
   }
   function g(x) {
-    return x>=10?Math.sqrt(x-10):0;
+    return x>=e?Math.sqrt(x-e):0;
   }
 
 function drawGraph(upperBound) {
