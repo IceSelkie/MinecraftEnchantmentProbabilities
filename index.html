@@ -25,10 +25,19 @@
     border-radius: 7.5px;
     padding: 2px;
     image-rendering: pixelated;
+    transition: 0.25s;
   }
-  .selected {
+  .highlighted {
     border: 2px solid orange;
     box-shadow: 0 4px 6px rgba(255, 165, 0, 0.6);
+  }
+  .parameters-box {
+    border: 1px solid #ccc;
+    padding: 10px;
+    width: 250px;
+    margin-right: 20px;
+    display: inline-block;
+    vertical-align: top;
   }
 </style>
 <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -43,48 +52,67 @@
     stroke: black;
     shape-rendering: crispEdges;
   }
+  .legend {
+    font-size: 14px;
+    padding: 10px; /* Read and used by JS */
+  }
+  .legend-background {
+    fill: #eee;
+    stroke: black;
+    rx: 5px;
+    ry: 5px;
+  }
 </style>
 </head>
 <body>
 
 <h2>Select Item:</h2>
 <div id="item-select" style="display: flex; justify-content: space-between;">
-<div id="item-buttons" style="flex-grow: 1;">
-<div class="icon-row" id="row-1">
-  <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Pickaxe',enchSet:'tool'})">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAHlBMVEUAAAD////Y2NjBwcGJZydoTh5ERERJNhUoHgsYGBhl7cYfAAAAAXRSTlMAQObYZgAAAEZJREFUeNpjwArS0hLANJuQsVopmJU509iDAQKKLCE0e4TRBDCjpGHyBIgAw+QJEAGGSRMgAgwTJ0AEGDihAlAtUEYHms0ANwkPY7rJmyQAAAAASUVORK5CYII=" alt="P" class="selected icon">
-    <div>Pickaxe</div>
+  <div id="item-buttons" style="flex-grow: 1;">
+    <div class="icon-row" id="row-1">
+      <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Pickaxe',enchSet:'tool'})">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAHlBMVEUAAAD////Y2NjBwcGJZydoTh5ERERJNhUoHgsYGBhl7cYfAAAAAXRSTlMAQObYZgAAAEZJREFUeNpjwArS0hLANJuQsVopmJU509iDAQKKLCE0e4TRBDCjpGHyBIgAw+QJEAGGSRMgAgwTJ0AEGDihAlAtUEYHms0ANwkPY7rJmyQAAAAASUVORK5CYII=" alt="P" class="highlighted icon">
+        <div>Pickaxe</div>
+      </div>
+      <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Sword',enchSet:'sword'})">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAi0lEQVQ4y2NgIAO4uLj8h2GyNMOAhITEf7I079u3j3QDqKb5xo0bNNKMLVRBfJAmomwGKc7OzoYbQpJmZEOmTZsGVgzSBGKT5GeYASAMcg3JAYbuFZI1e5qJ/s/wkwNrhAUq0YaANHemq//XkOMGawBphBlEMPRBGGQzTDMygBlE0M8k+xfdBnINAAA+k7meeyM0+AAAAABJRU5ErkJggg==" alt="S" class="icon">
+        <div>Sword</div>
+      </div>
+      <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Hoe',enchSet:'tool'})">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAXUlEQVQ4y2NgoCVwcXH5D8NkaQaBGzdugDFZhkhISPwH4YMHD8IN8TQT/Z/hJ/efZINAhoBwZ7o62FCSXQOyGeQKkCEkGwBzNsxLJGumyNkwm8nSPGozmcmWgd4AAIyXYZ4KnMPXAAAAAElFTkSuQmCC" alt="H" class="icon">
+        <div>Hoe</div>
+      </div>
+      <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Axe',enchSet:'tool'})">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAeUlEQVQ4y2NgoAdwcXH5D8Jka4YBkg2BaT548OD/GzdukGYAsmYY9jQT/Z/hJ0ecIRISEmADQDaDNE+bNg1Ma8hxE+8KkCEgDLIZ2RCQGNGGwJwNshnmFaINAGnuTFeHOxvmIpJtJjnuKdaM7OwhYjMIgDSSrZkSAABx5YE7nrv/FQAAAABJRU5ErkJggg==" alt="A" class="icon">
+        <div>Axe</div>
+      </div>
+    </div>
+    <div class="icon-row" id="row-2">
+      <div class="icon-container" onclick="selectIcon(this, 'row-2', {material:'Wooden',enchantability:3})">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAFVBMVEXCnWK4lF+vj1WfhE2WdEF+YjdnUCyo+21oAAAAcElEQVR42g3CARXDIAwFwM/DAAk1kGQCVoKDDQeAA+JfQnvvwAV4XyD9CSk5hMS8yYUxR6wTG+WLjKQ3hFtvQgwX/RCbI9aIWHOjJMWrgonMzTqSuqt6RcwRZ+xALqkiJ0DJ7WZWWONO5o6zz3+ciAdixhUFVj2uwQAAAABJRU5ErkJggg==" alt="W" class="icon">
+        <div>Wooden</div>
+      </div>
+      <div class="icon-container" onclick="selectIcon(this, 'row-2', {material:'Stone',enchantability:1})">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAElBMVEW1tbWmpqaIh4hubW1hYWFSUlLm8qFQAAAAcUlEQVR42gVAARGDMAz8MAMjh4CSLwIWIgDSIGAD/1p2iPk5pTfFOW3QLR3nGrrGQxSLTL1wp2TJ3PF6W/yaOjSV9eEB2y3a4omQPSerG4f6biMXkP0a8X2DMdpytQkuIWuY49CuziJmclhoIcsjUvgH41gVHD61kt4AAAAASUVORK5CYII=" alt="S" class="icon">
+        <div>Stone</div>
+      </div>
+      <div class="icon-container" onclick="selectIcon(this, 'row-2', {material:'Diamond',enchantability:10})">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAIVBMVEUAAAD////V//ah++hK7dks4NggxbUaqqcckZoRcnoUXlN/hNeyAAAAAXRSTlMAQObYZgAAAF1JREFUeNpjwApmzoTQnIJCE8CMiS5GWWABEWNltwVghpCQC4gx0dHFuKwKxHByNm4DM8SMTdpBjEku5eVpXUAGl3taWtkCECM8La0YxGBY4WKcBTaZa9WqBUg2AwByXRcdUQ3W3QAAAABJRU5ErkJggg==" alt="D" class="highlighted icon">
+        <div>Diamond</div>
+      </div>
+    </div>
   </div>
-  <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Sword',enchSet:'sword'})">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAi0lEQVQ4y2NgIAO4uLj8h2GyNMOAhITEf7I079u3j3QDqKb5xo0bNNKMLVRBfJAmomwGKc7OzoYbQpJmZEOmTZsGVgzSBGKT5GeYASAMcg3JAYbuFZI1e5qJ/s/wkwNrhAUq0YaANHemq//XkOMGawBphBlEMPRBGGQzTDMygBlE0M8k+xfdBnINAAA+k7meeyM0+AAAAABJRU5ErkJggg==" alt="S" class="icon">
-    <div>Sword</div>
-  </div>
-  <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Hoe',enchSet:'tool'})">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAXUlEQVQ4y2NgoCVwcXH5D8NkaQaBGzdugDFZhkhISPwH4YMHD8IN8TQT/Z/hJ/efZINAhoBwZ7o62FCSXQOyGeQKkCEkGwBzNsxLJGumyNkwm8nSPGozmcmWgd4AAIyXYZ4KnMPXAAAAAElFTkSuQmCC" alt="H" class="icon">
-    <div>Hoe</div>
-  </div>
-  <div class="icon-container" onclick="selectIcon(this, 'row-1', {item:'Axe',enchSet:'tool'})">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAeUlEQVQ4y2NgoAdwcXH5D8Jka4YBkg2BaT548OD/GzdukGYAsmYY9jQT/Z/hJ0ecIRISEmADQDaDNE+bNg1Ma8hxE+8KkCEgDLIZ2RCQGNGGwJwNshnmFaINAGnuTFeHOxvmIpJtJjnuKdaM7OwhYjMIgDSSrZkSAABx5YE7nrv/FQAAAABJRU5ErkJggg==" alt="A" class="icon">
-    <div>Axe</div>
-  </div>
-</div>
 
-<div class="icon-row" id="row-2">
-  <div class="icon-container" onclick="selectIcon(this, 'row-2', {material:'Wooden',enchantability:3})">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAFVBMVEXCnWK4lF+vj1WfhE2WdEF+YjdnUCyo+21oAAAAcElEQVR42g3CARXDIAwFwM/DAAk1kGQCVoKDDQeAA+JfQnvvwAV4XyD9CSk5hMS8yYUxR6wTG+WLjKQ3hFtvQgwX/RCbI9aIWHOjJMWrgonMzTqSuqt6RcwRZ+xALqkiJ0DJ7WZWWONO5o6zz3+ciAdixhUFVj2uwQAAAABJRU5ErkJggg==" alt="W" class="icon">
-    <div>Wooden</div>
-  </div>
-  <div class="icon-container" onclick="selectIcon(this, 'row-2', {material:'Stone',enchantability:1})">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAElBMVEW1tbWmpqaIh4hubW1hYWFSUlLm8qFQAAAAcUlEQVR42gVAARGDMAz8MAMjh4CSLwIWIgDSIGAD/1p2iPk5pTfFOW3QLR3nGrrGQxSLTL1wp2TJ3PF6W/yaOjSV9eEB2y3a4omQPSerG4f6biMXkP0a8X2DMdpytQkuIWuY49CuziJmclhoIcsjUvgH41gVHD61kt4AAAAASUVORK5CYII=" alt="S" class="icon">
-    <div>Stone</div>
-  </div>
-  <div class="icon-container" onclick="selectIcon(this, 'row-2', {material:'Diamond',enchantability:10})">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAIVBMVEUAAAD////V//ah++hK7dks4NggxbUaqqcckZoRcnoUXlN/hNeyAAAAAXRSTlMAQObYZgAAAF1JREFUeNpjwApmzoTQnIJCE8CMiS5GWWABEWNltwVghpCQC4gx0dHFuKwKxHByNm4DM8SMTdpBjEku5eVpXUAGl3taWtkCECM8La0YxGBY4WKcBTaZa9WqBUg2AwByXRcdUQ3W3QAAAABJRU5ErkJggg==" alt="D" class="selected icon">
-    <div>Diamond</div>
+  <div class="parameters-box">
+    <h3>Parameters:</h3>
+    <p><strong>Type:</strong> <span id="variable-type"></span></p>
+    <p><strong>Enchantability:</strong> <span id="variable-enchantability"></span></p>
+    <p><strong>Treasure:</strong> <span id="variable-treasure"></span></p>
+    <p><strong>Toss:</strong> <span id="variable-toss"></span></p>
+    <p><strong>Level:</strong> <i id="variable-lvl">[graphed]</i></p>
+    <p><strong>Allowed Enchantments:</strong> <span id="variable-enchs"></span></p>
   </div>
 </div>
-</div>
-
 <script>
 var currentlySelected = {
   item:"Pickaxe",
@@ -94,19 +122,19 @@ var currentlySelected = {
   treasure: false,
   toss: false
 }
-function selectIcon(selectedElement, rowId, data={}) {
+function selectIcon(highlightedElement, rowId, data={}) {
   // Deselect all icons in the row
   var iconContainers = document.getElementById(rowId).getElementsByClassName('icon-container');
   for (var i = 0; i < iconContainers.length; i++) {
     var icon = iconContainers[i].querySelector('.icon'); // Using querySelector to target the .icon within the container
-    icon.classList.remove('selected');
+    icon.classList.remove('highlighted');
   }
   // Select the clicked icon
-  var img = selectedElement.querySelector('.icon'); // Now we're sure to get the .icon element
+  var img = highlightedElement.querySelector('.icon'); // Now we're sure to get the .icon element
   if (img) {
-    img.classList.add('selected');
+    img.classList.add('highlighted');
   }
-  
+
   Object.entries(data).forEach(([key,value])=>{
     if (currentlySelected[key])
       currentlySelected[key] = value;
@@ -115,29 +143,13 @@ function selectIcon(selectedElement, rowId, data={}) {
   if (drawGraph) drawGraph(30)
 }
 </script>
-
-
-
-
-
-<div id="parameters" style="border: 1px solid #ccc; padding: 10px; width: 200px; margin-right: 20px; display: inline-block; vertical-align: top;">
-  <h3>Parameters:</h3>
-  <p><strong>Type:</strong> <span id="variable-type"></span></p>
-  <p><strong>Enchantability:</strong> <span id="variable-enchantability"></span></p>
-  <p><strong>Treasure:</strong> <span id="variable-treasure"></span></p>
-  <p><strong>Toss:</strong> <span id="variable-toss"></span></p>
-  <p><strong>Level:</strong> <i id="variable-lvl">[graphed]</i></p>
-  <p><strong>Allowed Enchantments:</strong> <span id="variable-enchs"></span></p>
-</div>
-</div>
 <script>
 function updateVariableBox() {
-  currentlySelected;
   document.getElementById('variable-type').textContent = `${currentlySelected.material} ${currentlySelected.item}`;
   document.getElementById('variable-enchantability').textContent = currentlySelected.enchantability;
   document.getElementById('variable-treasure').textContent = currentlySelected.treasure;
   document.getElementById('variable-toss').textContent = currentlySelected.toss;
-  
+
   document.getElementById('variable-enchs').textContent = {} ?? currentlySelected.enchSet;
 }
 updateVariableBox();
@@ -166,18 +178,27 @@ updateVariableBox();
     return x>=e?Math.sqrt(x-e):0;
   }
 
+  const functionsToDraw = {"f(x)":f,"g(x)":g};
+  // Create a group for the legend
+  const legendData = [
+    {name: 'f(x)', color: 'steelblue'},
+    {name: 'g(x)', color: 'red'}
+  ];
+
 function drawGraph(upperBound) {
   // Generate data
   const resolution = 0.01;
   const data = d3.range(0, upperBound+resolution, resolution).map(function(x) {
-    return {x: x, fx: f(x), gx: g(x)};
+    let ret = {x};
+    Object.keys(functionsToDraw).forEach(k => ret[k]=functionsToDraw[k](x));
+    return ret;
   });
 
   // Set the dimensions and margins of the graph
   const margin = {top: 20, right: 20, bottom: 30, left: 50},
       width = 600 - margin.left - margin.right,
       height = 400 - margin.top - margin.bottom;
-      
+
   // Clear the graph:
   d3.select("svg").selectAll("*").remove();
 
@@ -186,7 +207,14 @@ function drawGraph(upperBound) {
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
     .append("g")
+      .attr("class", "graph-body")
       .attr("transform", `translate(${margin.left},${margin.top})`);
+  svg.append('rect')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('fill', 'transparent');
+
+
 
   // Add X axis
   const x = d3.scaleLinear()
@@ -198,45 +226,100 @@ function drawGraph(upperBound) {
 
   // Add Y axis
   const y = d3.scaleLinear()
-    .domain([0, d3.max(data, d => Math.max(d.fx, d.gx))])
+    .domain([0, d3.max(data, d => Math.max(...Object.keys(functionsToDraw).map(k => d[k])))])
     .range([height, 0]);
   svg.append("g")
     .call(d3.axisLeft(y));
 
-  // Add the f(x) line
-  svg.append("path")
-    .datum(data)
-    .attr("class", "line")
-    .attr("stroke", "steelblue")
-    .attr("d", d3.line()
-      .x(d => x(d.x))
-      .y(d => y(d.fx))
-    );
+  // Draw the lines:
+  Object.entries(functionsToDraw).forEach(([name, func]) => {
+    const color = legendData.find(a=>a.name==name).color;
 
-  // Add the g(x) line
-  svg.append("path")
-    .datum(data)
-    .attr("class", "line")
-    .attr("stroke", "red")
-    .attr("d", d3.line()
-      .x(d => x(d.x))
-      .y(d => y(d.gx))
-    );
-  
-  // Add points
-  data.filter(d=>d.x%1==0).forEach(d => {
-    svg.append('circle')
-      .attr('cx', x(d.x))
-      .attr('cy', y(d.fx))
-      .attr('r', 3) // radius of dots
-      .attr('fill', 'steelblue');
-    svg.append('circle')
-      .attr('cx', x(d.x))
-      .attr('cy', y(d.gx))
-      .attr('r', 3) // radius of dots
-      .attr('fill', 'red');
+    // Add the line
+    svg.append("path")
+      .datum(data)
+      .attr("class", "line")
+      .attr("stroke", color)
+      .attr("d", d3.line()
+        .x(d => x(d.x))
+        .y(d => y(d[name]))
+      );
+
+    // Add points
+    data.filter(d => d.x % 1 == 0).forEach(d => {
+      svg.append('circle')
+        .attr('cx', x(d.x))
+        .attr('cy', y(d[name]))
+        .attr('r', 3) // radius of dots
+        .attr('fill', color);
+    });
   });
 
+
+
+
+  const legend = svg.append('g')
+    .attr('class', 'legend')
+    .attr('transform', `translate(50, 20)`); // Adjust these values to position the legend
+  // Legend background
+  legendBackground = legend.append('rect')
+    .attr('class', 'legend-background');
+  // Add rectangles and text for each item in the legend
+  legend.selectAll(null)
+    .data(legendData)
+    .enter().append('g')
+    .attr('transform', (d, i) => `translate(0, ${i * 20})`) // Adjust spacing between legend items
+    .each(function(d) {
+      d3.select(this).append('rect')
+        .attr('width', 15)
+        .attr('height', 15)
+        .attr('fill', d.color);
+
+      d3.select(this).append('text')
+        .attr('x', 20) // Adjust text position
+        .attr('y', 10) // Adjust text position
+        .attr('dy', '0.35em') // Center the text vertically
+        .text(d.name);
+    });
+  // Calculate the bounding box of the legend items
+  const legendBBox = legend.node().getBBox();
+  const asNum = str=>Number(str.substring(0,str.length-2));
+  const computedLegend = window.getComputedStyle(document.querySelector('.legend'));
+  const getPadding = side => asNum(computedLegend[`padding-${side}`]);
+  // Set the width and height of the background rectangle
+  legendBackground
+    .attr('width', legendBBox.width + getPadding("left") + getPadding("right"))  // Add some padding
+    .attr('height', legendBBox.height + getPadding("top") + getPadding("bottom"))
+    .attr('x', legendBBox.x - getPadding("left"))  // Adjust the position to include the padding
+    .attr('y', legendBBox.y - getPadding("top"));
+
+
+
+
+  // Highlight points on-click
+  function findNearestPoint(mouseX) {
+    const bisect = d3.bisector(d => d.x).left;
+    const x0 = x.invert(mouseX);
+    const i = bisect(data, x0, 1);
+    const d0 = data[i - 1];
+    const d1 = data[i];
+    return x0 - d0.x > d1.x - x0 ? d1 : d0;
+  }
+  svg.on('click', function(event) {
+      const mouseX = d3.pointer(event, this)[0];
+      const nearestPoint = findNearestPoint(mouseX);
+
+      // Remove any existing selected points
+      svg.selectAll('.selected-point').remove();
+
+      // Add a larger point at the selected x value
+      svg.append('circle')
+        .attr('class', 'selected-point')
+        .attr('cx', x(nearestPoint.x))
+        .attr('cy', y(nearestPoint["f(x)"]))
+        .attr('r', 10)
+        .attr('fill', 'red');
+    });
 };
 
 drawGraph(30);
