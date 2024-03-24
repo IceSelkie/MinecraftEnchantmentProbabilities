@@ -166,7 +166,7 @@ updateVariableBox();
 <output id="upper-bound-value" for="upper-bound-slider">30</output>
 <br/>
 
-<svg width="600" height="400"></svg>
+<svg width="700" height="400"></svg>
 
 <script>
   // Example test functions until actual enchantment functions are implemented
@@ -178,11 +178,11 @@ updateVariableBox();
     return x>=e?Math.sqrt(x-e):0;
   }
 
-  const functionsToDraw = {"f(x)":f,"g(x)":g};
-  const legendData = [
-    {name: 'f(x)', color: 'steelblue'},
-    {name: 'g(x)', color: 'red'}
+  const functionsToDraw = [
+    {name: 'f(x)', color: 'steelblue', func:f},
+    {name: 'g(x)', color: 'red',       func:g}
   ];
+  let lastSelectedPosition = null;
 
 
 
@@ -192,16 +192,16 @@ function drawGraph(upperBound) {
   const svg = resetGraph();
   const {x,y} = drawAxes(svg, data);
   drawDataPaths(svg, data, {x,y});
-  addPointSelector(svg, data);
-  drawLegend(svg, data, {x,y});
+  valueDetailsLayer(svg, {x,y});
+  drawLegend(svg, data);
 };
 
 
 
 function generateGraphData(start, end, resolution) {
   const data = d3.range(start, end+resolution, resolution).map(function(x) {
-    let ret = {x};
-    Object.keys(functionsToDraw).forEach(k => ret[k]=functionsToDraw[k](x));
+    let ret = {x,values:{}};
+    functionsToDraw.forEach(({name,func}) => ret.values[name]=func(x));
     return ret;
   });
   return data;
@@ -209,7 +209,7 @@ function generateGraphData(start, end, resolution) {
 function resetGraph() {
   // Set the dimensions and margins of the graph
   const margin = {top: 20, right: 20, bottom: 30, left: 50},
-      width = 600 - margin.left - margin.right,
+      width = 600 - margin.left - margin.right + 100, // Space on the right for extra data
       height = 400 - margin.top - margin.bottom;
 
   // Clear the graph:
@@ -240,7 +240,7 @@ function drawAxes(svg, data) {
 
   // Vertical Axis
   const y_scale = d3.scaleLinear()
-    .domain([0, d3.max(data, d => Math.max(...Object.keys(functionsToDraw).map(k => d[k])))])
+    .domain([0, d3.max(data, d => Math.max(...Object.values(d.values)))])
     .range([height, 0]);
   svg.append("g")
     .call(d3.axisLeft(y_scale));
@@ -248,24 +248,21 @@ function drawAxes(svg, data) {
   return {x:x_scale,y:y_scale};
 }
 function drawDataPaths(svg, data, {x, y}) {
-  Object.entries(functionsToDraw).forEach(([name, func]) => {
-    const color = legendData.find(a=>a.name==name).color;
-
-    // Add the line
+  functionsToDraw.forEach(({name, color}) => {
+    // Draw line
     svg.append("path")
       .datum(data)
       .attr("class", "line")
       .attr("stroke", color)
       .attr("d", d3.line()
         .x(d => x(d.x))
-        .y(d => y(d[name]))
+        .y(d => y(d.values[name]))
       );
-
-    // Add points
+    // Draw points
     data.filter(d => d.x % 1 == 0).forEach(d => {
       svg.append('circle')
         .attr('cx', x(d.x))
-        .attr('cy', y(d[name]))
+        .attr('cy', y(d.values[name]))
         .attr('r', 3) // radius of dots
         .attr('fill', color);
     });
@@ -280,19 +277,20 @@ function drawLegend(svg, data) {
     .attr('class', 'legend-background');
   // Add rectangles and text for each item in the legend
   legend.selectAll(null)
-    .data(legendData)
+    .data(functionsToDraw)
     .enter().append('g')
     .attr('transform', (d, i) => `translate(0, ${i * 20})`) // Adjust spacing between legend items
     .each(function(d) {
+      // Symbol
       d3.select(this).append('rect')
         .attr('width', 15)
         .attr('height', 15)
         .attr('fill', d.color);
-
+      // Name
       d3.select(this).append('text')
-        .attr('x', 20) // Adjust text position
-        .attr('y', 10) // Adjust text position
-        .attr('dy', '0.35em') // Center the text vertically
+        .attr('x', 20)
+        .attr('y', 10)
+        .attr('dy', '0.35em') // "Center" the text vertically
         .text(d.name);
     });
   // Calculate the bounding box of the legend items
@@ -307,31 +305,84 @@ function drawLegend(svg, data) {
     .attr('x', legendBBox.x - getPadding("left"))  // Adjust the position to include the padding
     .attr('y', legendBBox.y - getPadding("top"));
 }
-function addPointSelector(svg, data, {x,y}) {
-  // Highlight points on-click
-  function findNearestPoint(mouseX) {
-    const bisect = d3.bisector(d => d.x).left;
-    const x0 = x.invert(mouseX);
-    const i = bisect(data, x0, 1);
-    const d0 = data[i - 1];
-    const d1 = data[i];
-    return x0 - d0.x > d1.x - x0 ? d1 : d0;
-  }
-  svg.on('click', function(event) {
-      const mouseX = d3.pointer(event, this)[0];
-      const nearestPoint = findNearestPoint(mouseX);
+// Highlight points on-click
+function valueDetailsLayer(svg, {x,y}) {
+  resolvePosition=(mousePos)=> [x.invert(mousePos[0]),y.invert(mousePos[1])];
 
-      // Remove any existing selected points
-      svg.selectAll('.selected-point').remove();
+  // Group the selections into a group
+  const selectedGroup = svg.append('g')
+    .attr('id', 'selected-data');
 
-      // Add a larger point at the selected x value
-      svg.append('circle')
+  // Variables in scope: svg, x, y, (any global variables)
+  const listener = (graphPosition) => {
+    let x_pt = null;
+    if (graphPosition) {
+      x_pt = Math.round(graphPosition[0]);
+      if (x_pt == lastSelectedPosition) return;
+      lastSelectedPosition = x_pt;
+    } else {
+      x_pt = lastSelectedPosition;
+    }
+
+    // Remove existing
+    selectedGroup.selectAll('*').remove();
+
+    const width = Math.abs(x.range()[0]-x.range()[1]);
+    const height = Math.abs(y.range()[0]-y.range()[1]);
+
+    // vertical bar
+    selectedGroup.append('rect')
+      .attr('class', 'vertical-bar')
+      .attr('x', x(x_pt) - 1)  // Adjust the position and width of the bar
+      .attr('width', 2)
+      .attr('y', 0)
+      .attr('height', height)
+      .attr('fill', 'black');
+
+    // Sort points in descending order by value
+    let points = functionsToDraw.map(({name,color,func})=>{return {name,color,func,val:func(x_pt)}});
+    points.sort((a,b)=>b.val-a.val);
+
+    // Make the selected points larger
+    points.forEach(({color, val})=>{
+      selectedGroup.append('circle')
         .attr('class', 'selected-point')
-        .attr('cx', x(nearestPoint.x))
-        .attr('cy', y(nearestPoint["f(x)"]))
-        .attr('r', 10)
-        .attr('fill', 'red');
+        .attr('cx', x(x_pt))
+        .attr('cy', y(val))
+        .attr('r', 5)
+        .attr('fill', color);
     });
+
+    // Pointer
+    points.forEach(({name,color,val},i)=>{
+      // Adjust the vertical spacing of the labels
+      const labelY = i * 20 + 20;
+      selectedGroup.append('line')
+        .attr('class', 'data-line')
+        .attr('x1', x(x_pt))
+        .attr('y1', y(val))
+        .attr('x2', width)
+        .attr('y2', labelY)
+        .attr('stroke', color)
+        .attr('stroke-dasharray', '4');
+      selectedGroup.append('text')
+        .attr('class', 'data-label')
+        .attr('x', width + 5)  // Adjust the position of the label
+        .attr('y', labelY)
+        .text(`${name}: ${val.toFixed(2)}`)  // Adjust the text format as needed
+        .attr('fill', color);
+    });
+  };
+
+  let mouseDown = false;
+  svg.on('click',     function(event){                listener(resolvePosition(d3.pointer(event, this)))});
+  svg.on('mousedown', function(event){mouseDown=true; listener(resolvePosition(d3.pointer(event, this)))});
+  svg.on('mousemove', function(event){ if (mouseDown) listener(resolvePosition(d3.pointer(event, this)))});
+  svg.on('mouseup', ()=>mouseDown=false);
+
+  // If a point was already selected before the redraw, keep it selected.
+  if (lastSelectedPosition)
+    listener(null);
 }
 
 drawGraph(30);
